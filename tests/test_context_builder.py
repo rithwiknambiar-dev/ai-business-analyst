@@ -7,6 +7,7 @@ sys.path.append(str(project_root))
 from src.ingestion.data_loader import DataLoader
 from src.eda.exploratory_analysis import ExploratoryAnalysis
 from src.insights.insight_generator import InsightGenerator
+from src.rag.context_builder import ContextBuilder
 
 
 df = DataLoader.load_data()
@@ -15,19 +16,13 @@ eda = ExploratoryAnalysis(df)
 
 eda_report = eda.generate_eda_report()
 
-insight_generator = InsightGenerator(
+insights = InsightGenerator(
     eda_report
-)
+).generate_all_insights()
 
-insights = insight_generator.generate_all_insights()
+context = ContextBuilder(
+    eda_report,
+    insights
+).build_context()
 
-print("\nBUSINESS INSIGHTS\n")
-
-for index, insight in enumerate(
-    insights,
-    start=1
-):
-    print(
-        f"\nInsight {index}:"
-    )
-    print(insight)
+print(context)

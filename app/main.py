@@ -1,144 +1,233 @@
-import streamlit as st
-import pandas as pd
-from src.ingestion.data_loader import load_data, validate_dataframe
-from src.utils.helpers import inject_premium_css, render_metric_card
-from src.utils.config import APP_TITLE
-from src.rag.vector_store import InMemoryVectorStore
-from src.rag.embedding_generator import EmbeddingGenerator
-from src.rag.document_processor import convert_dataframe_to_chunks
-import os
+import sys
+from pathlib import Path
 
-# Set page config
+import streamlit as st
+
+project_root = Path(__file__).resolve().parent.parent
+sys.path.append(str(project_root))
+
+from src.ingestion.data_loader import DataLoader
+from src.profiling.data_profiler import DataProfiler
+from src.preprocessing.data_cleaner import DataCleaner
+from src.eda.exploratory_analysis import ExploratoryAnalysis
+from src.insights.insight_generator import InsightGenerator
+
+from app.utils.data_manager import DataManager
+
+
+# --------------------------------------------------
+# PAGE CONFIG
+# --------------------------------------------------
+
 st.set_page_config(
-    page_title=APP_TITLE,
+    page_title="AI Business Analyst",
     page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
-# Initialize Session State
-if "df" not in st.session_state:
-    st.session_state.df = None
-if "raw_df" not in st.session_state:
-    st.session_state.raw_df = None
-if "filename" not in st.session_state:
-    st.session_state.filename = None
-if "api_key" not in st.session_state:
-    st.session_state.api_key = ""
-if "api_provider" not in st.session_state:
-    st.session_state.api_provider = "mock"
-if "vector_store" not in st.session_state:
-    st.session_state.vector_store = InMemoryVectorStore()
-if "embedding_generator" not in st.session_state:
-    st.session_state.embedding_generator = None
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
+# --------------------------------------------------
+# HEADER
+# --------------------------------------------------
 
-# Inject custom CSS
-inject_premium_css()
+st.title("📊 AI Business Analyst")
 
-# Sidebar Layout
-with st.sidebar:
-    st.markdown("<h2 style='text-align: center; color: #00E5FF;'>🛠️ Analyst Controls</h2>", unsafe_allow_html=True)
-    st.markdown("---")
+st.markdown(
+    """
+    Upload a sales dataset and automatically generate:
     
-    # 1. Dataset Upload
-    st.markdown("### 1. Ingest Dataset")
-    uploaded_file = st.file_uploader("Upload CSV or Excel file", type=["csv", "xlsx", "xls"])
-    
-    if uploaded_file is not None:
-        if st.session_state.filename != uploaded_file.name:
-            # New file uploaded
-            try:
-                with st.spinner("Loading and parsing dataset..."):
-                    df = load_data(uploaded_file)
-                    is_valid, errors = validate_dataframe(df)
-                    
-                    if is_valid:
-                        st.session_state.df = df
-                        st.session_state.raw_df = df.copy()
-                        st.session_state.filename = uploaded_file.name
-                        
-                        # Trigger Vector Store indexing for RAG
-                        st.session_state.vector_store.clear()
-                        # Instantiate defaults
-                        generator = EmbeddingGenerator(
-                            use_provider=st.session_state.api_provider,
-                            api_key=st.session_state.api_key
-                        )
-                        st.session_state.embedding_generator = generator
-                        
-                        # Process chunks
-                        chunks = convert_dataframe_to_chunks(df, dataset_name=uploaded_file.name)
-                        embeddings = generator.get_embeddings([c["text"] for c in chunks])
-                        st.session_state.vector_store.add_documents(chunks, embeddings)
-                        
-                        st.success(f"Successfully loaded '{uploaded_file.name}'!")
-                    else:
-                        st.error(f"Validation failed: {', '.join(errors)}")
-            except Exception as e:
-                st.error(f"Error reading file: {str(e)}")
-                
-    st.markdown("---")
-    
-    # 2. LLM Configuration
-    st.markdown("### 2. AI Settings")
-    provider = st.selectbox(
-        "LLM Provider",
-        options=["mock", "gemini", "openai"],
-        index=0,
-        help="Select 'mock' for local heuristic answers without API keys, or connect to Gemini/OpenAI."
-    )
-    
-    api_key = st.text_input("Enter API Key", type="password", value=st.session_state.api_key)
-    
-    # Update AI settings when they change
-    if provider != st.session_state.api_provider or api_key != st.session_state.api_key:
-        st.session_state.api_provider = provider
-        st.session_state.api_key = api_key
-        # Re-initialize embedding generator if dataset is active
-        if st.session_state.df is not None:
-            generator = EmbeddingGenerator(use_provider=provider, api_key=api_key)
-            st.session_state.embedding_generator = generator
-            # Reindex
-            st.session_state.vector_store.clear()
-            chunks = convert_dataframe_to_chunks(st.session_state.df, dataset_name=st.session_state.filename)
-            embeddings = generator.get_embeddings([c["text"] for c in chunks])
-            st.session_state.vector_store.add_documents(chunks, embeddings)
-            st.toast("AI context re-indexed.")
+    - Data Quality Reports
+    - Exploratory Analysis
+    - Business Insights
+    - Executive Summaries
+    """
+)
 
-# Main Page Layout
-st.markdown("<h1 style='text-align: center; color: #FFFFFF;'>⚡ AI Business Analyst ⚡</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #8A99AD; font-size: 1.1rem;'>The next-generation autonomous business intelligence and forecasting agent.</p>", unsafe_allow_html=True)
 st.markdown("---")
 
-# UI columns
-col1, col2 = st.columns([2, 1])
+# --------------------------------------------------
+# SIDEBAR
+# --------------------------------------------------
+
+st.sidebar.title("Dataset Management")
+
+uploaded_file = st.sidebar.file_uploader(
+    "Upload CSV Dataset",
+    type=["csv"]
+)
+
+# --------------------------------------------------
+# DATA LOADING
+# --------------------------------------------------
+
+if uploaded_file:
+
+    df = DataManager.save_uploaded_data(
+        uploaded_file
+    )
+
+    st.sidebar.success(
+        "Dataset Uploaded Successfully"
+    )
+
+else:
+
+    uploaded_df = DataManager.get_data()
+
+    if uploaded_df is not None:
+
+        df = uploaded_df
+
+    else:
+
+        df = DataLoader.load_data()
+
+        st.sidebar.info(
+            "Using Default Dataset"
+        )
+
+# --------------------------------------------------
+# PROCESSING PIPELINE
+# --------------------------------------------------
+
+profiler = DataProfiler(df)
+
+profile_report = profiler.generate_profile()
+
+cleaner = DataCleaner(df)
+
+cleaning_report = (
+    cleaner.generate_cleaning_report()
+)
+
+eda = ExploratoryAnalysis(df)
+
+eda_report = eda.generate_eda_report()
+
+insight_generator = InsightGenerator(
+    eda_report
+)
+
+insights = (
+    insight_generator.generate_all_insights()
+)
+
+# --------------------------------------------------
+# DATASET OVERVIEW
+# --------------------------------------------------
+
+st.header("Dataset Overview")
+
+col1, col2, col3 = st.columns(3)
 
 with col1:
-    st.markdown("### Welcome to Your AI Workspace")
-    st.markdown("""
-    This platform integrates advanced data analytics, statistical modeling, and Retrieval-Augmented Generation (RAG) 
-    to provide an automated workspace for processing raw business tables.
-    
-    #### How to use:
-    1. **Upload your dataset** in the sidebar (CSV or Excel).
-    2. **Review Data Quality** in the *Data Quality* page to clean/impute values.
-    3. **Visualize Insights** dynamically using the *Exploratory Analysis* portal.
-    4. **Generate Forecasts** and predict seasonal trends with the *Forecasting* engine.
-    5. **Chat with Data** on the *AI Chat* screen to get natural language answers to business queries.
-    """)
-    
-    st.info("💡 **Tip:** Use the sidebar controls to toggle between OpenAI, Gemini, and a fast local fallback mode.")
+
+    st.metric(
+        "Rows",
+        profile_report["rows"]
+    )
 
 with col2:
-    st.markdown("### System Status")
-    if st.session_state.df is not None:
-        st.markdown(f"**Loaded File:** `{st.session_state.filename}`")
-        
-        # Render neat layout metrics
-        df_shape = st.session_state.df.shape
-        render_metric_card("Row Count", f"{df_shape[0]:,}", "Active Rows", "neutral")
-        render_metric_card("Dimension Count", f"{df_shape[1]} columns", "Active Schema", "neutral")
-    else:
-        st.warning("No active dataset. Upload a file in the sidebar controller to begin.")
+
+    st.metric(
+        "Columns",
+        profile_report["columns"]
+    )
+
+with col3:
+
+    st.metric(
+        "Memory Usage (MB)",
+        profile_report["memory_usage_mb"]
+    )
+
+st.markdown("---")
+
+# --------------------------------------------------
+# DATA QUALITY
+# --------------------------------------------------
+
+st.header("Data Quality Report")
+
+col1, col2 = st.columns(2)
+
+with col1:
+
+    st.metric(
+        "Duplicate Rows",
+        cleaning_report["duplicate_rows"]
+    )
+
+with col2:
+
+    total_missing = sum(
+        cleaning_report[
+            "missing_values"
+        ].values()
+    )
+
+    st.metric(
+        "Missing Values",
+        total_missing
+    )
+
+st.markdown("---")
+
+# --------------------------------------------------
+# EDA SUMMARY
+# --------------------------------------------------
+
+st.header("EDA Summary")
+
+col1, col2 = st.columns(2)
+
+with col1:
+
+    st.subheader("Sales Summary")
+
+    st.json(
+        eda_report[
+            "sales_summary"
+        ]
+    )
+
+with col2:
+
+    st.subheader("Profit Summary")
+
+    st.json(
+        eda_report[
+            "profit_summary"
+        ]
+    )
+
+st.markdown("---")
+
+# --------------------------------------------------
+# BUSINESS INSIGHTS
+# --------------------------------------------------
+
+st.header("Business Insights")
+
+for idx, insight in enumerate(
+    insights,
+    start=1
+):
+
+    st.success(
+        f"Insight {idx}: {insight}"
+    )
+
+# --------------------------------------------------
+# DATA PREVIEW
+# --------------------------------------------------
+
+st.markdown("---")
+
+with st.expander(
+    "View Dataset Preview"
+):
+
+    st.dataframe(
+        df.head(100),
+        use_container_width=True
+    )

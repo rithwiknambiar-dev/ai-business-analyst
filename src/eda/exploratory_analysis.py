@@ -1,145 +1,206 @@
 import pandas as pd
-import numpy as np
-import plotly.express as px
-import plotly.graph_objects as go
 
-def generate_correlation_matrix(df: pd.DataFrame):
-    """
-    Generate correlation matrix heatmap for all numeric columns.
-    """
-    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    if len(numeric_cols) < 2:
-        return None
-        
-    corr_df = df[numeric_cols].corr()
-    
-    fig = px.imshow(
-        corr_df,
-        text_auto=".2f",
-        aspect="auto",
-        color_continuous_scale="RdBu_r",
-        title="Correlation Heatmap of Numeric Variables"
-    )
-    fig.update_layout(
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#FFFFFF")
-    )
-    return fig
 
-def generate_distribution_plot(df: pd.DataFrame, column: str, plot_type="histogram"):
-    """
-    Generate distribution plot (histogram or box plot) for a numeric column.
-    """
-    if column not in df.columns:
-        return None
-        
-    if plot_type == "histogram":
-        fig = px.histogram(
-            df,
-            x=column,
-            marginal="box",
-            title=f"Distribution of {column}",
-            color_discrete_sequence=["#00E5FF"]
+class ExploratoryAnalysis:
+
+    def __init__(self, df):
+        self.df = df
+
+    def get_sales_summary(self):
+
+        return {
+            "total_sales": round(self.df["Sales"].sum(), 2),
+            "average_sales": round(self.df["Sales"].mean(), 2),
+            "maximum_sale": round(self.df["Sales"].max(), 2),
+            "minimum_sale": round(self.df["Sales"].min(), 2)
+        }
+
+    def get_profit_summary(self):
+
+        return {
+            "total_profit": round(self.df["Profit"].sum(), 2),
+            "average_profit": round(self.df["Profit"].mean(), 2),
+            "maximum_profit": round(self.df["Profit"].max(), 2),
+            "minimum_profit": round(self.df["Profit"].min(), 2)
+        }
+
+    def get_region_analysis(self):
+
+        region_sales = (
+            self.df.groupby("Region")["Sales"]
+            .sum()
+            .round(2)
+            .to_dict()
         )
-    else:  # Box plot
-        fig = px.box(
-            df,
-            y=column,
-            title=f"Box Plot of {column}",
-            color_discrete_sequence=["#D500F9"]
-        )
-        
-    fig.update_layout(
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#FFFFFF")
-    )
-    return fig
 
-def generate_categorical_bar(df: pd.DataFrame, category_col: str, count_col=None, agg_func="count"):
-    """
-    Generate category bar chart, optionally aggregating a numerical column.
-    """
-    if category_col not in df.columns:
-        return None
-        
-    if count_col and count_col in df.columns:
-        if agg_func == "sum":
-            agg_df = df.groupby(category_col)[count_col].sum().reset_index()
-            y_col = count_col
-            title = f"Sum of {count_col} by {category_col}"
-        elif agg_func == "mean":
-            agg_df = df.groupby(category_col)[count_col].mean().reset_index()
-            y_col = count_col
-            title = f"Average of {count_col} by {category_col}"
-        else:
-            agg_df = df.groupby(category_col).size().reset_index(name="Count")
-            y_col = "Count"
-            title = f"Record Count by {category_col}"
-    else:
-        agg_df = df.groupby(category_col).size().reset_index(name="Count")
-        y_col = "Count"
-        title = f"Record Count by {category_col}"
-        
-    # Sort for cleaner visual representation
-    agg_df = agg_df.sort_values(by=y_col, ascending=False).head(20)
-    
-    fig = px.bar(
-        agg_df,
-        x=category_col,
-        y=y_col,
-        title=title,
-        color_discrete_sequence=["#2979FF"]
-    )
-    fig.update_layout(
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#FFFFFF")
-    )
-    return fig
-
-def generate_relationship_plot(df: pd.DataFrame, x_col: str, y_col: str, color_col=None, plot_type="scatter"):
-    """
-    Generate scatter or line relationship plot between x_col and y_col.
-    """
-    if x_col not in df.columns or y_col not in df.columns:
-        return None
-        
-    if plot_type == "scatter":
-        fig = px.scatter(
-            df,
-            x=x_col,
-            y=y_col,
-            color=color_col if color_col in df.columns else None,
-            title=f"{y_col} vs {x_col}",
-            color_continuous_scale="Viridis"
+        region_profit = (
+            self.df.groupby("Region")["Profit"]
+            .sum()
+            .round(2)
+            .to_dict()
         )
-    else:  # Line plot
-        # For lines, check if we need to sort by x (especially useful if dates)
-        sorted_df = df.sort_values(by=x_col)
-        
-        # If color column is present, group lines
-        if color_col and color_col in df.columns:
-            fig = px.line(
-                sorted_df,
-                x=x_col,
-                y=y_col,
-                color=color_col,
-                title=f"{y_col} Trend over {x_col} by {color_col}"
-            )
-        else:
-            fig = px.line(
-                sorted_df,
-                x=x_col,
-                y=y_col,
-                title=f"{y_col} Trend over {x_col}",
-                color_discrete_sequence=["#FF9100"]
-            )
-            
-    fig.update_layout(
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#FFFFFF")
-    )
-    return fig
+
+        best_region = max(region_sales, key=region_sales.get)
+        worst_region = min(region_sales, key=region_sales.get)
+
+        return {
+            "sales_by_region": region_sales,
+            "profit_by_region": region_profit,
+            "best_region": best_region,
+            "worst_region": worst_region
+        }
+
+    def get_category_analysis(self):
+
+        category_sales = (
+            self.df.groupby("Category")["Sales"]
+            .sum()
+            .round(2)
+            .to_dict()
+        )
+
+        category_profit = (
+            self.df.groupby("Category")["Profit"]
+            .sum()
+            .round(2)
+            .to_dict()
+        )
+
+        best_category = max(
+            category_sales,
+            key=category_sales.get
+        )
+
+        worst_category = min(
+            category_sales,
+            key=category_sales.get
+        )
+
+        return {
+            "sales_by_category": category_sales,
+            "profit_by_category": category_profit,
+            "best_category": best_category,
+            "worst_category": worst_category
+        }
+
+    def get_segment_analysis(self):
+
+        segment_sales = (
+            self.df.groupby("Segment")["Sales"]
+            .sum()
+            .round(2)
+            .to_dict()
+        )
+
+        segment_profit = (
+            self.df.groupby("Segment")["Profit"]
+            .sum()
+            .round(2)
+            .to_dict()
+        )
+
+        return {
+            "sales_by_segment": segment_sales,
+            "profit_by_segment": segment_profit
+        }
+
+    def get_subcategory_analysis(self):
+
+        subcategory_sales = (
+            self.df.groupby("Sub-Category")["Sales"]
+            .sum()
+            .sort_values(ascending=False)
+            .round(2)
+            .to_dict()
+        )
+
+        return {
+            "sales_by_subcategory": subcategory_sales
+        }
+
+    def get_discount_analysis(self):
+
+        return {
+            "average_discount":
+                round(
+                    self.df["Discount"].mean(),
+                    2
+                ),
+
+            "maximum_discount":
+                round(
+                    self.df["Discount"].max(),
+                    2
+                )
+        }
+
+    def get_correlation_analysis(self):
+
+        correlation_matrix = self.df[
+            [
+                "Sales",
+                "Profit",
+                "Quantity",
+                "Discount"
+            ]
+        ].corr()
+
+        return {
+            "sales_profit":
+                round(
+                    correlation_matrix.loc[
+                        "Sales",
+                        "Profit"
+                    ],
+                    2
+                ),
+
+            "sales_quantity":
+                round(
+                    correlation_matrix.loc[
+                        "Sales",
+                        "Quantity"
+                    ],
+                    2
+                ),
+
+            "discount_profit":
+                round(
+                    correlation_matrix.loc[
+                        "Discount",
+                        "Profit"
+                    ],
+                    2
+                )
+        }
+
+    def generate_eda_report(self):
+
+        report = {
+
+            "sales_summary":
+                self.get_sales_summary(),
+
+            "profit_summary":
+                self.get_profit_summary(),
+
+            "region_analysis":
+                self.get_region_analysis(),
+
+            "category_analysis":
+                self.get_category_analysis(),
+
+            "segment_analysis":
+                self.get_segment_analysis(),
+
+            "subcategory_analysis":
+                self.get_subcategory_analysis(),
+
+            "discount_analysis":
+                self.get_discount_analysis(),
+
+            "correlation_analysis":
+                self.get_correlation_analysis()
+        }
+
+        return report

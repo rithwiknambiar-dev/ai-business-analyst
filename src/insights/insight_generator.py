@@ -1,84 +1,138 @@
-import pandas as pd
-import numpy as np
-from src.kpi.kpi_engine import identify_kpi_columns, calculate_time_metrics
-from src.anomaly_detection.anomaly_detector import detect_anomalies_zscore
+class InsightGenerator:
 
-def generate_automated_insights(df: pd.DataFrame) -> list[dict]:
-    """
-    Generate automatic natural language insights based on data properties and metrics.
-    Returns a list of dicts: {"title": str, "description": str, "type": "info"|"warning"|"success"}
-    """
-    insights = []
-    
-    # 1. Column Identification
-    kpis = identify_kpi_columns(df)
-    date_col = kpis["date_column"]
-    metrics = kpis["metric_columns"]
-    dimensions = kpis["dimension_columns"]
-    
-    if not metrics:
-        insights.append({
-            "title": "Data Characteristics",
-            "description": f"The dataset contains {len(df)} rows and {len(df.columns)} columns, but no clear continuous numerical columns were identified for aggregation.",
-            "type": "info"
-        })
+    def __init__(self, eda_report):
+        self.eda_report = eda_report
+
+    def generate_region_insight(self):
+
+        region_data = self.eda_report["region_analysis"]
+
+        best_region = region_data["best_region"]
+        worst_region = region_data["worst_region"]
+
+        best_sales = region_data["sales_by_region"][best_region]
+        worst_sales = region_data["sales_by_region"][worst_region]
+
+        return (
+            f"{best_region} region generated the highest revenue "
+            f"with sales of {best_sales:,.2f}. "
+            f"{worst_region} region generated the lowest revenue "
+            f"with sales of {worst_sales:,.2f}."
+        )
+
+    def generate_category_insight(self):
+
+        category_data = self.eda_report["category_analysis"]
+
+        best_category = category_data["best_category"]
+        worst_category = category_data["worst_category"]
+
+        best_sales = category_data["sales_by_category"][best_category]
+        worst_sales = category_data["sales_by_category"][worst_category]
+
+        return (
+            f"{best_category} is the top-performing category "
+            f"with sales of {best_sales:,.2f}. "
+            f"{worst_category} generated the lowest sales "
+            f"with {worst_sales:,.2f}."
+        )
+
+    def generate_segment_insight(self):
+
+        segment_sales = self.eda_report[
+            "segment_analysis"
+        ]["sales_by_segment"]
+
+        best_segment = max(
+            segment_sales,
+            key=segment_sales.get
+        )
+
+        sales = segment_sales[best_segment]
+
+        return (
+            f"{best_segment} customers contribute the "
+            f"largest share of revenue with sales "
+            f"of {sales:,.2f}."
+        )
+
+    def generate_subcategory_insight(self):
+
+        subcategories = self.eda_report[
+            "subcategory_analysis"
+        ]["sales_by_subcategory"]
+
+        top_subcategory = next(
+            iter(subcategories)
+        )
+
+        sales = subcategories[top_subcategory]
+
+        return (
+            f"{top_subcategory} is the best-selling "
+            f"sub-category with sales of "
+            f"{sales:,.2f}."
+        )
+
+    def generate_discount_insight(self):
+
+        correlation = self.eda_report[
+            "correlation_analysis"
+        ]["discount_profit"]
+
+        if correlation < 0:
+
+            return (
+                f"Discounts show a negative correlation "
+                f"with profit ({correlation}). "
+                f"Higher discounts tend to reduce "
+                f"profitability."
+            )
+
+        return (
+            f"Discounts show a positive correlation "
+            f"with profit ({correlation})."
+        )
+
+    def generate_sales_profit_insight(self):
+
+        total_sales = self.eda_report[
+            "sales_summary"
+        ]["total_sales"]
+
+        total_profit = self.eda_report[
+            "profit_summary"
+        ]["total_profit"]
+
+        profit_margin = (
+            total_profit / total_sales
+        ) * 100
+
+        return (
+            f"Total sales amount to "
+            f"{total_sales:,.2f} with "
+            f"overall profit of "
+            f"{total_profit:,.2f}. "
+            f"The overall profit margin "
+            f"is {profit_margin:.2f}%."
+        )
+
+    def generate_all_insights(self):
+
+        insights = [
+
+            self.generate_sales_profit_insight(),
+
+            self.generate_region_insight(),
+
+            self.generate_category_insight(),
+
+            self.generate_segment_insight(),
+
+            self.generate_subcategory_insight(),
+
+            self.generate_discount_insight()
+
+        ]
+
         return insights
-        
-    primary_metric = metrics[0]
-    
-    # 2. General Stats Insight
-    total_val = df[primary_metric].sum()
-    mean_val = df[primary_metric].mean()
-    insights.append({
-        "title": f"Summary of {primary_metric}",
-        "description": f"Total accumulated {primary_metric} is **{total_val:,.2f}** with an average value per transaction/record of **{mean_val:,.2f}** across {len(df):,} records.",
-        "type": "success"
-    })
-    
-    # 3. Categorical distribution insights
-    if dimensions:
-        primary_dim = dimensions[0]
-        # Calculate largest categories
-        cat_counts = df.groupby(primary_dim).size().reset_index(name="counts")
-        if not cat_counts.empty:
-            top_cat = cat_counts.sort_values(by="counts", ascending=False).iloc[0]
-            insights.append({
-                "title": f"Primary Segment: {primary_dim}",
-                "description": f"The category **'{top_cat[primary_dim]}'** has the highest activity, representing **{top_cat['counts'] / len(df) * 100:.1f}%** ({top_cat['counts']:,} records) of the dataset.",
-                "type": "info"
-            })
-            
-        # Metric by dimension insights
-        if len(metrics) > 0:
-            agg_dim = df.groupby(primary_dim)[primary_metric].sum().reset_index()
-            if not agg_dim.empty:
-                top_agg = agg_dim.sort_values(by=primary_metric, ascending=False).iloc[0]
-                insights.append({
-                    "title": f"Top Volume Driver: {primary_dim}",
-                    "description": f"The segment **'{top_agg[primary_dim]}'** contributed the most to {primary_metric}, totaling **{top_agg[primary_metric]:,.2f}** (**{top_agg[primary_metric] / total_val * 100:.1f}%**).",
-                    "type": "success"
-                })
-                
-    # 4. Time-series growth insights
-    if date_col:
-        time_stats = calculate_time_metrics(df, date_col, primary_metric)
-        if time_stats and "mom_growth_percent" in time_stats:
-            growth = time_stats["mom_growth_percent"]
-            direction = "increased" if growth > 0 else "decreased"
-            status_type = "success" if growth > 0 else "warning"
-            insights.append({
-                "title": f"Monthly Growth of {primary_metric}",
-                "description": f"Recent monthly statistics show that {primary_metric} has **{direction} by {abs(growth):.2f}%** Month-over-Month, ending at a monthly volume of **{time_stats['current_month_value']:,.2f}**.",
-                "type": status_type
-            })
-            
-    # 5. Outlier/Anomaly insights
-    anomalies = detect_anomalies_zscore(df, primary_metric)
-    if not anomalies.empty:
-        insights.append({
-            "title": f"Anomalies Flagged in {primary_metric}",
-            "description": f"We detected **{len(anomalies)} statistical anomalies** in {primary_metric} using Z-score boundaries. These instances deviate significantly from typical values and warrant further investigation.",
-            "type": "warning"
-        })
-        
-    return insights

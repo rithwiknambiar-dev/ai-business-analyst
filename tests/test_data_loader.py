@@ -1,25 +1,43 @@
-import pytest
-import pandas as pd
-import tempfile
-import os
-from src.ingestion.data_loader import load_data, validate_dataframe
+import sys
+from pathlib import Path
 
-def test_load_data_csv():
-    # Create temp CSV file
-    with tempfile.NamedTemporaryFile(suffix=".csv", mode="w+", delete=False) as f:
-        f.write("date,sales,category\n2026-01-01,100,A\n2026-01-02,200,B\n")
-        temp_path = f.name
-        
-    try:
-        df = load_data(temp_path)
-        assert isinstance(df, pd.DataFrame)
-        assert len(df) == 2
-        assert list(df.columns) == ["date", "sales", "category"]
-    finally:
-        os.unlink(temp_path)
+project_root = Path(__file__).resolve().parent.parent
+sys.path.append(str(project_root))
 
-def test_validate_dataframe_empty():
-    empty_df = pd.DataFrame()
-    is_valid, errors = validate_dataframe(empty_df)
-    assert not is_valid
-    assert "empty" in errors[0].lower()
+from src.ingestion.data_loader import DataLoader
+from src.profiling.data_profiler import DataProfiler
+from src.preprocessing.data_cleaner import DataCleaner
+
+
+def main():
+
+    print("\nLoading Dataset...\n")
+
+    df = DataLoader.load_data()
+
+    print("Dataset Loaded Successfully")
+    print(f"Rows: {df.shape[0]}")
+    print(f"Columns: {df.shape[1]}")
+
+    print("\nColumn Names:\n")
+
+    for column in df.columns:
+        print(column)
+
+    profiler = DataProfiler(df)
+
+    profile = profiler.generate_profile()
+
+    print("\nPROFILE REPORT\n")
+    print(profile)
+
+    cleaner = DataCleaner(df)
+
+    cleaning_report = cleaner.generate_cleaning_report()
+
+    print("\nDATA QUALITY REPORT\n")
+    print(cleaning_report)
+
+
+if __name__ == "__main__":
+    main()
