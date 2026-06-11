@@ -1,123 +1,393 @@
-# AI Business Analyst
+# AI Business Analyst Platform
 
-An interactive, AI-powered business intelligence (BI) dashboard built with Streamlit. The application allows business analysts and decision-makers to upload raw datasets (CSV/Excel), perform data profiling, run exploratory data analysis (EDA), detect business anomalies, forecast future trends, generate summary reports, and chat with their data using a RAG (Retrieval-Augmented Generation) chatbot.
-
-## Features
-
-1. **Data Ingestion & Cleaning**:
-   - Supports CSV and Excel formats.
-   - Automatically handles delimiters, data encoding, and header validation.
-   - Clean data wizard for duplicate removal, missing value imputation, and data type standardizations.
-
-2. **Data Profiling**:
-   - Computes statistical summaries, missingness percentages, uniqueness metrics, and data types.
-   - Provides a comprehensive "Data Quality Score".
-
-3. **Interactive EDA**:
-   - Build custom Plotly visualizations (scatter, line, bar, box, histogram, correlation heatmap).
-   - Customize dimensions, metrics, and grouping categories dynamically.
-
-4. **KPI Engine**:
-   - Automatically identifies columns representing core metrics (revenue, transactions, dates, categories).
-   - Computes performance indicators (MoM growth, running totals, cumulative values).
-
-5. **Anomaly Detection**:
-   - Detects outliers, sudden spikes/drops, and pattern shifts using Isolation Forests and standard Z-score statistical bounds.
-   - Isolates anomalous rows with natural language explanations.
-
-6. **Time-Series Forecasting**:
-   - Implements regression/autoregressive trends for multi-period forecasting.
-   - Generates confidence intervals and overlays them on historical performance using interactive Plotly charts.
-
-7. **RAG-Powered AI Chat**:
-   - Parses tabular data, transforms row statistics into contextual text chunks, and builds semantic embeddings.
-   - Employs an in-memory vector database for query-relevant retrieval.
-   - Interfaces with LLM APIs (Gemini/OpenAI) using the user's API Key.
-   - Falls back to a smart local heuristics-based query answerer when API keys are absent.
-
-8. **Automated Insights & Export**:
-   - Generates natural language analysis reports.
-   - Exports the analysis as downloadable reports.
+An end-to-end AI-powered Business Analytics Platform that enables organizations to upload datasets, analyze business performance, detect anomalies, forecast future trends, and interact with data using natural language through a Retrieval-Augmented Generation (RAG) system powered by Gemini.
 
 ---
 
-## Directory Structure
+# Project Overview
 
+The AI Business Analyst Platform combines Data Analytics, Machine Learning, and Generative AI to automate business intelligence workflows.
+
+Users can:
+
+- Upload business datasets
+- Generate Data Quality Reports
+- Perform Exploratory Data Analysis (EDA)
+- Generate Automated Business Insights
+- Detect Anomalies
+- Forecast Future Trends
+- Interact with data using AI Chat
+- Generate Executive Reports
+
+---
+
+# Features
+
+## Data Quality Analysis
+
+- Missing value analysis
+- Duplicate record detection
+- Data type validation
+- Dataset summary statistics
+
+## Exploratory Data Analysis (EDA)
+
+- Numerical feature analysis
+- Distribution analysis
+- Correlation analysis
+- Statistical summaries
+
+## Business Insights Engine
+
+- Revenue analysis
+- Profitability analysis
+- Regional performance analysis
+- Product category analysis
+- Executive recommendations
+
+## Interactive Dashboard
+
+- Total Sales KPI
+- Total Profit KPI
+- Profit Margin KPI
+- Sales by Region
+- Category Performance
+- Interactive Visualizations
+
+## Anomaly Detection
+
+### Z-Score Method
+
+Detects statistical outliers using standard deviation thresholds.
+
+### Isolation Forest
+
+Detects multivariate anomalies using machine learning.
+
+Features:
+
+- Outlier Detection
+- Root Cause Identification
+- Anomaly Scoring
+- Business Risk Monitoring
+
+## Predictive Forecasting
+
+- Monthly Forecasting
+- Weekly Forecasting
+- Daily Forecasting
+- Confidence Intervals
+- Trend Analysis
+- Future Projections
+
+## AI Business Analyst Chat
+
+Powered by:
+
+- Google Gemini
+- Sentence Transformers
+- FAISS Vector Database
+- Retrieval-Augmented Generation (RAG)
+
+Users can ask questions such as:
+
+- Which region performs best?
+- What products generate highest profit?
+- Which category has highest sales?
+- Give me business recommendations.
+- Summarize this dataset.
+
+---
+
+# Architecture
+
+```text
+CSV Dataset
+      │
+      ▼
+Data Loader
+      │
+      ▼
+Data Cleaning
+      │
+      ▼
+Data Profiling
+      │
+      ▼
+EDA Analysis
+      │
+      ▼
+Business Insights
+      │
+      ├──────────────► Dashboard
+      │
+      ├──────────────► Anomaly Detection
+      │
+      ├──────────────► Forecasting
+      │
+      ▼
+Context Builder
+      │
+      ▼
+Document Processing
+      │
+      ▼
+Sentence Embeddings
+      │
+      ▼
+FAISS Vector Store
+      │
+      ▼
+Retriever
+      │
+      ▼
+Gemini LLM
+      │
+      ▼
+AI Business Analyst Chat
 ```
+
+---
+
+# Technology Stack
+
+## Frontend
+
+- Streamlit
+
+## Data Processing
+
+- Pandas
+- NumPy
+
+## Visualization
+
+- Plotly
+- Matplotlib
+
+## Machine Learning
+
+- Scikit-Learn
+- Isolation Forest
+- Ridge Regression
+
+## AI & RAG
+
+- Google Gemini
+- Sentence Transformers
+- FAISS
+- Retrieval-Augmented Generation (RAG)
+
+## Environment Management
+
+- Python Dotenv
+
+---
+
+# Project Structure
+
+```text
 ai-business-analyst/
+
+├── app/
+│   ├── main.py
+│   ├── pages/
+│   └── utils/
 │
-├── data/                    # Local storage for raw, processed, and embeddings data
+├── data/
 │   ├── raw/
 │   ├── processed/
 │   └── embeddings/
 │
-├── notebooks/                # Experimental Jupyter Notebooks
+├── reports/
 │
-├── src/                     # Core Business Logic Package
-│   ├── __init__.py
-│   ├── ingestion/           # Data ingestion (loaders)
-│   ├── profiling/           # Data profiling and quality scoring
-│   ├── preprocessing/       # Data cleaning and manipulation
-│   ├── eda/                 # Interactive visual layouts and data aggregators
-│   ├── insights/            # Automated narrative generators
-│   ├── kpi/                 # Automated KPI calculations
-│   ├── anomaly_detection/   # Outlier and anomaly engines
-│   ├── forecasting/         # Prediction models and historical forecasting
-│   ├── rag/                 # Vector stores, retrievers, and LLM orchestration
-│   ├── reports/             # HTML report compilers
-│   └── utils/               # Configs and auxiliary utilities
+├── screenshots/
 │
-├── app/                     # Streamlit Frontend Multi-page Application
-│   ├── pages/               # Individual functional pages
-│   └── main.py              # Main landing and configuration page
+├── src/
+│   ├── anomaly_detection/
+│   ├── eda/
+│   ├── forecasting/
+│   ├── ingestion/
+│   ├── insights/
+│   ├── kpi/
+│   ├── preprocessing/
+│   ├── profiling/
+│   └── rag/
 │
-├── reports/                 # Exported analyst reports
-├── screenshots/             # Screenshots of application dashboard
-├── tests/                   # Pytest suite
+├── tests/
 │
-├── requirements.txt         # Core dependencies
-├── README.md                # System documentation
-├── .gitignore               # Git ignored patterns
-└── architecture.png         # Project architecture diagram
+├── .env.example
+├── .gitignore
+├── requirements.txt
+└── README.md
 ```
 
 ---
 
-## Installation & Setup
+# Installation
 
-1. **Clone the Repository**:
-   ```bash
-   git clone <repository_url>
-   cd ai-business-analyst
-   ```
+## Clone Repository
 
-2. **Create and Activate a Virtual Environment**:
-   ```bash
-   python -m venv venv
-   # Windows:
-   venv\Scripts\activate
-   # macOS/Linux:
-   source venv/bin/activate
-   ```
+```bash
+git clone https://github.com/your-username/ai-business-analyst.git
 
-3. **Install Dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+cd ai-business-analyst
+```
 
-4. **Set Up Environment Variables**:
-   Create a `.env` file in the root directory and add your API Keys (optional; the app will fall back to smart local algorithms if missing):
-   ```env
-   GEMINI_API_KEY=your_gemini_api_key_here
-   OPENAI_API_KEY=your_openai_api_key_here
-   ```
+## Create Virtual Environment
 
-5. **Run the Application**:
-   ```bash
-   streamlit run app/main.py
-   ```
+```bash
+python -m venv venv
+```
 
-6. **Run Unit Tests**:
-   ```bash
-   pytest
-   ```
+### Windows
+
+```bash
+venv\Scripts\activate
+```
+
+### Linux / Mac
+
+```bash
+source venv/bin/activate
+```
+
+## Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+# Configure Gemini API
+
+Create a `.env` file in the project root:
+
+```env
+GEMINI_API_KEY=YOUR_API_KEY
+```
+
+---
+
+# Run Application
+
+```bash
+streamlit run app/main.py
+```
+
+Application will be available at:
+
+```text
+http://localhost:8501
+```
+
+---
+
+# Screenshots
+
+## Dashboard
+
+Add screenshot:
+
+```markdown
+![Dashboard](screenshots/dashboard.png)
+```
+
+---
+
+## AI Chat
+
+```markdown
+![AI Chat](screenshots/ai-chat.png)
+```
+
+---
+
+## Forecasting
+
+```markdown
+![Forecasting](screenshots/forecasting.png)
+```
+
+---
+
+## Anomaly Detection
+
+```markdown
+![Anomaly Detection](screenshots/anomaly-detection.png)
+```
+
+---
+
+## Business Insights
+
+```markdown
+![Business Insights](screenshots/business-insights.png)
+```
+
+---
+
+# Example Business Questions
+
+The AI Business Analyst can answer:
+
+- Which region generates the highest revenue?
+- What category has the highest profit?
+- Which products contribute most to profitability?
+- What business recommendations do you have?
+- Summarize this dataset.
+- Which regions are underperforming?
+- What are the key business risks?
+
+---
+
+# Key Achievements
+
+- Built an end-to-end AI-powered Business Analytics Platform.
+- Implemented Retrieval-Augmented Generation (RAG).
+- Integrated Google Gemini for conversational analytics.
+- Developed forecasting and anomaly detection modules.
+- Created executive-level business insight generation.
+- Built interactive dashboards using Streamlit and Plotly.
+- Optimized semantic search using FAISS Vector Database.
+
+---
+
+# Future Enhancements
+
+- Multi-file dataset support
+- PDF Executive Reports
+- Automated PowerPoint Generation
+- Advanced Time Series Models
+- Customer Segmentation
+- Demand Forecasting
+- Cloud Deployment
+- User Authentication
+- Role-Based Access Control
+- Real-Time Analytics
+
+---
+
+# Resume Highlights
+
+Built an AI-powered Business Analytics Platform integrating Data Analysis, Machine Learning, Forecasting, Anomaly Detection, and Retrieval-Augmented Generation (RAG) using Gemini, FAISS, and Sentence Transformers.
+
+Developed interactive dashboards, predictive analytics modules, and conversational AI capabilities to automate business intelligence workflows and generate executive-level business insights.
+
+---
+
+# Author
+
+## Rithwik Nambiar
+
+- M.Sc. Data Science
+- Data Analyst
+- Data Science Enthusiast
+- AI & Analytics Developer
+
+---
+
+# License
+
+This project is developed for educational, portfolio, and research purposes.

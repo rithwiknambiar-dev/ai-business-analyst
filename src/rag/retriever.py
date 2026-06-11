@@ -17,7 +17,7 @@ class Retriever:
     def retrieve(
         self,
         query,
-        top_k=5
+        top_k=10
     ):
 
         query_embedding = (
