@@ -1,72 +1,126 @@
-import pandas as pd
 from pathlib import Path
+
+import pandas as pd
+
+from src.schema.schema_analyzer import analyze_schema
 
 
 class DataLoader:
 
     @staticmethod
-    def load_data():
+    def load_data(file_path):
 
-        file_path = Path("data/raw/sales_data.csv")
+        dataset_path = Path(file_path)
 
-        if not file_path.exists():
+        if not dataset_path.exists():
+
             raise FileNotFoundError(
-                f"Dataset not found: {file_path}"
+                f"Dataset not found: {dataset_path}"
             )
 
-        try:
+        return DataLoader.load_file(
+            dataset_path
+        )
 
-            if file_path.suffix.lower() == ".csv":
+    @staticmethod
+    def load_file(file_path):
 
-                try:
+        file_path = Path(file_path)
 
-                    df = pd.read_csv(
-                        file_path,
-                        encoding="utf-8"
-                    )
+        df = DataLoader._read_dataset(
+            file_path,
+            file_path.suffix.lower()
+        )
 
-                except UnicodeDecodeError:
+        return DataLoader.prepare_dataframe(
+            df
+        )
 
-                    df = pd.read_csv(
-                        file_path,
-                        encoding="latin1"
-                    )
+    @staticmethod
+    def load_uploaded_data(uploaded_file):
 
-            elif file_path.suffix.lower() in [
-                ".xlsx",
-                ".xls"
-            ]:
+        file_name = getattr(
+            uploaded_file,
+            "name",
+            "uploaded.csv"
+        )
 
-                df = pd.read_excel(
-                    file_path
-                )
+        df = DataLoader._read_dataset(
+            uploaded_file,
+            Path(file_name).suffix.lower()
+        )
 
-            else:
+        return DataLoader.prepare_dataframe(
+            df
+        )
 
-                raise ValueError(
-                    "Unsupported file format"
-                )
+    @staticmethod
+    def prepare_dataframe(df):
 
-            # Convert Date Columns
+        schema_metadata = analyze_schema(
+            df
+        )
 
-            date_columns = [
-                "Order Date",
-                "Ship Date"
-            ]
+        for column in schema_metadata.get(
+            "date_columns",
+            []
+        ):
 
-            for column in date_columns:
-
-                if column in df.columns:
-
-                    df[column] = pd.to_datetime(
-                        df[column],
-                        errors="coerce"
-                    )
-
-            return df
-
-        except Exception as e:
-
-            raise Exception(
-                f"Error loading dataset: {str(e)}"
+            df[column] = pd.to_datetime(
+                df[column],
+                errors="coerce",
+                format="mixed"
             )
+
+        return df
+
+    @staticmethod
+    def _read_dataset(
+        file_source,
+        suffix
+    ):
+
+        if suffix == ".csv":
+
+            try:
+
+                return pd.read_csv(
+                    file_source,
+                    encoding="utf-8"
+                )
+
+            except UnicodeDecodeError:
+
+                DataLoader._reset_file_source(
+                    file_source
+                )
+
+                return pd.read_csv(
+                    file_source,
+                    encoding="latin1"
+                )
+
+        if suffix in [
+            ".xlsx",
+            ".xls"
+        ]:
+
+            return pd.read_excel(
+                file_source
+            )
+
+        raise ValueError(
+            f"Unsupported file format: {suffix}"
+        )
+
+    @staticmethod
+    def _reset_file_source(
+        file_source
+    ):
+
+        if hasattr(
+            file_source,
+            "seek"
+        ):
+
+            file_source.seek(0)

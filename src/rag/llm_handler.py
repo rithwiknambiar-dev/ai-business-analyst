@@ -4,10 +4,6 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 
 
-# ==========================================
-# LOAD ENVIRONMENT VARIABLES
-# ==========================================
-
 load_dotenv()
 
 
@@ -34,7 +30,42 @@ class LLMHandler:
         )
 
     # ==========================================
-    # SUMMARY CONTEXT QUESTION ANSWERING
+    # QUESTION TYPE DETECTION
+    # ==========================================
+
+    def get_question_type(
+        self,
+        question
+    ):
+
+        question = question.lower()
+
+        analysis_keywords = [
+
+            "why",
+            "recommend",
+            "recommendation",
+            "improve",
+            "strategy",
+            "insight",
+            "analyze",
+            "analysis",
+            "root cause",
+            "opportunity",
+            "risk",
+            "forecast"
+        ]
+
+        for keyword in analysis_keywords:
+
+            if keyword in question:
+
+                return "analysis"
+
+        return "fact"
+
+    # ==========================================
+    # SUMMARY CONTEXT QA
     # ==========================================
 
     def ask_question(
@@ -43,37 +74,57 @@ class LLMHandler:
         question
     ):
 
-        prompt = f"""
-You are an expert Business Analyst.
+        question_type = (
+            self.get_question_type(
+                question
+            )
+        )
 
-Use ONLY the information provided in the dataset context.
+        if question_type == "fact":
+
+            prompt = f"""
+You are an AI Data Analyst.
+
+Answer ONLY using the dataset context.
 
 DATASET CONTEXT
 
 {context}
 
-USER QUESTION
+QUESTION
 
 {question}
 
-Instructions:
+Rules:
 
-1. Answer the question directly.
+1. Give a short direct answer.
+2. If information is not available, clearly say so.
+3. Do not provide recommendations.
+4. Do not provide business interpretation.
+5. Do not invent information.
+"""
+
+        else:
+
+            prompt = f"""
+You are a Senior Business Analyst.
+
+Answer ONLY using the dataset context.
+
+DATASET CONTEXT
+
+{context}
+
+QUESTION
+
+{question}
+
+Rules:
+
+1. Answer the question.
 2. Explain the business meaning.
-3. Provide recommendations if applicable.
-4. Be concise and professional.
-5. Do not make up information not present in the dataset.
-
-Format:
-
-Direct Answer:
-...
-
-Business Interpretation:
-...
-
-Recommendation:
-...
+3. Give recommendations if relevant.
+4. Do not invent information.
 """
 
         try:
@@ -92,7 +143,7 @@ Recommendation:
             )
 
     # ==========================================
-    # RAG QUESTION ANSWERING
+    # RAG QA
     # ==========================================
 
     def ask_rag_question(
@@ -105,10 +156,18 @@ Recommendation:
             retrieved_docs
         )
 
-        prompt = f"""
-You are a Senior Business Analyst.
+        question_type = (
+            self.get_question_type(
+                question
+            )
+        )
 
-Answer ONLY using the retrieved records below.
+        if question_type == "fact":
+
+            prompt = f"""
+You are an AI Data Analyst.
+
+Use ONLY the retrieved records.
 
 RETRIEVED RECORDS
 
@@ -118,24 +177,55 @@ QUESTION
 
 {question}
 
-Instructions:
+Rules:
 
-1. Give a direct answer.
+1. Answer directly.
+2. Be concise.
+3. If the requested information does not exist, say:
+   "This information is not available in the dataset."
+4. Never guess.
+5. Never invent names, values or columns.
+6. Do not provide recommendations.
+7. Do not provide business interpretation.
+
+Examples:
+
+Question:
+How many employees are in Sales?
+
+Answer:
+25 employees are in the Sales department.
+
+Question:
+List employee names.
+
+Answer:
+This information is not available in the dataset because no employee name field exists.
+"""
+
+        else:
+
+            prompt = f"""
+You are a Senior Business Analyst.
+
+Use ONLY the retrieved records.
+
+RETRIEVED RECORDS
+
+{context}
+
+QUESTION
+
+{question}
+
+Rules:
+
+1. Answer the question.
 2. Explain the business meaning.
-3. Give business recommendations.
+3. Give recommendations if relevant.
 4. Use only the retrieved records.
-5. Do not invent information.
-
-Format:
-
-Direct Answer:
-...
-
-Business Interpretation:
-...
-
-Recommendation:
-...
+5. If information is unavailable, clearly state it.
+6. Do not invent information.
 """
 
         try:
@@ -165,7 +255,7 @@ Recommendation:
         prompt = f"""
 You are a Senior Business Analyst.
 
-Create an executive summary from the dataset information below.
+Create an executive summary.
 
 DATASET CONTEXT
 
@@ -196,7 +286,7 @@ Provide:
             )
 
     # ==========================================
-    # GENERIC ANALYSIS METHOD
+    # BUSINESS ANALYSIS
     # ==========================================
 
     def analyze_business_problem(
@@ -208,11 +298,11 @@ Provide:
         prompt = f"""
 You are a Business Strategy Consultant.
 
-Dataset Context:
+DATASET CONTEXT
 
 {context}
 
-Business Problem:
+BUSINESS PROBLEM
 
 {problem_statement}
 

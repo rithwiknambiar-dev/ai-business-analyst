@@ -381,11 +381,6 @@ Developed interactive dashboards, predictive analytics modules, and conversation
 
 ## Rithwik Nambiar
 
-- M.Sc. Data Science
-- Data Analyst
-- Data Science Enthusiast
-- AI & Analytics Developer
-
 ---
 
 # License

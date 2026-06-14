@@ -1,0 +1,20 @@
+[
+    {
+        "dataset_name": "sales_data.csv",
+        "dataset_path": "data\\user_datasets\\sales_data.csv",
+        "dataset_type": "Sales",
+        "rows": 9994,
+        "columns": 21,
+        "upload_time": "2026-06-14 12:40:57",
+        "fingerprint": "c5e6ef58d6d3c5fbb0901186f7a6ce34ae3c620a3d64190c2b5bff2fd7e4c489"
+    },
+    {
+        "dataset_name": "HR_Analytics.csv",
+        "dataset_path": "data\\user_datasets\\HR_Analytics.csv",
+        "dataset_type": "HR",
+        "rows": 1480,
+        "columns": 38,
+        "upload_time": "2026-06-14 12:47:35",
+        "fingerprint": "77605c365438fc4e0dc718cfa22b7b1e5d78f63fecbfea0c71097c63e34177d6"
+    }
+]

@@ -14,7 +14,6 @@ project_root = (
 sys.path.append(str(project_root))
 
 from app.utils.data_manager import DataManager
-from src.ingestion.data_loader import DataLoader
 from src.rag.llm_handler import LLMHandler
 from src.rag.rag_engine import RAGEngine
 
@@ -24,24 +23,11 @@ from src.rag.rag_engine import RAGEngine
 # =====================================
 
 st.set_page_config(
-    page_title="AI Business Analyst",
+    page_title="AI Data Analyst Chat",
     layout="wide"
 )
 
-st.title("AI Business Analyst Chat")
-
-st.markdown(
-    """
-Ask questions about your dataset.
-
-Examples:
-
-- Which region performs best?
-- Which products generate highest profit?
-- Which category has highest sales?
-- Give me business recommendations.
-"""
-)
+st.title("🤖 AI Data Analyst Chat")
 
 # =====================================
 # LOAD DATA
@@ -50,23 +36,141 @@ Examples:
 df = DataManager.get_data()
 
 if df is None:
-    df = DataLoader.load_data()
+
+    st.warning(
+        "Please upload and select a dataset first."
+    )
+
+    st.stop()
 
 # =====================================
-# CACHE RAG ENGINE
+# DATASET INFO
+# =====================================
+
+dataset_name = (
+    DataManager.get_active_dataset_name()
+)
+
+dataset_summary = (
+    DataManager.get_dataset_summary()
+)
+
+dataset_fingerprint = (
+    DataManager.get_dataset_fingerprint()
+)
+
+if dataset_fingerprint is None:
+
+    st.error(
+        "Dataset fingerprint not found."
+    )
+
+    st.stop()
+
+# =====================================
+# RESET CHAT IF DATASET CHANGES
+# =====================================
+
+previous_dataset = (
+    st.session_state.get(
+        "chat_dataset"
+    )
+)
+
+if previous_dataset != dataset_fingerprint:
+
+    st.session_state.messages = []
+
+    st.session_state[
+        "chat_dataset"
+    ] = dataset_fingerprint
+
+# =====================================
+# DATASET HEADER
+# =====================================
+
+st.success(
+    f"Active Dataset: {dataset_name}"
+)
+
+if dataset_summary:
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        st.metric(
+            "Dataset Type",
+            dataset_summary.get(
+                "dataset_type",
+                "Generic"
+            )
+        )
+
+    with col2:
+
+        st.metric(
+            "Rows",
+            dataset_summary.get(
+                "row_count",
+                0
+            )
+        )
+
+    with col3:
+
+        st.metric(
+            "Columns",
+            dataset_summary.get(
+                "column_count",
+                0
+            )
+        )
+
+# =====================================
+# DYNAMIC QUESTIONS
+# =====================================
+
+if dataset_summary:
+
+    st.markdown(
+        "### Suggested Questions"
+    )
+
+    for question in dataset_summary.get(
+        "suggested_questions",
+        []
+    ):
+
+        st.info(question)
+
+# =====================================
+# RAG LOADER
 # =====================================
 
 @st.cache_resource
-def load_rag_engine():
-
-    return RAGEngine(df)
-
-
-with st.spinner(
-    "Building RAG Index (First Run Only)..."
+def load_rag_engine(
+    fingerprint,
+    dataframe
 ):
 
-    rag_engine = load_rag_engine()
+    return RAGEngine(
+        dataframe
+    )
+
+with st.spinner(
+
+    "Preparing your dataset for AI search..."
+):
+
+    rag_engine = load_rag_engine(
+        dataset_fingerprint,
+        df
+    )
+
+# =====================================
+# LLM
+# =====================================
 
 llm = LLMHandler()
 
@@ -79,7 +183,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # =====================================
-# DISPLAY HISTORY
+# DISPLAY CHAT
 # =====================================
 
 for message in st.session_state.messages:
@@ -97,12 +201,10 @@ for message in st.session_state.messages:
 # =====================================
 
 question = st.chat_input(
-    "Ask a question about the dataset..."
+    "Ask anything about your dataset..."
 )
 
 if question:
-
-    # User Message
 
     st.session_state.messages.append(
         {
@@ -119,14 +221,12 @@ if question:
             question
         )
 
-    # Assistant Message
-
     with st.chat_message(
         "assistant"
     ):
 
         with st.spinner(
-            "Searching Dataset..."
+            "Analyzing dataset..."
         ):
 
             retrieved_docs = (
@@ -147,7 +247,7 @@ if question:
             )
 
             with st.expander(
-                "View Retrieved Records"
+                "Retrieved Context"
             ):
 
                 for i, doc in enumerate(
@@ -156,7 +256,7 @@ if question:
                 ):
 
                     st.markdown(
-                        f"### Record {i}"
+                        f"### Document {i}"
                     )
 
                     st.text(doc)

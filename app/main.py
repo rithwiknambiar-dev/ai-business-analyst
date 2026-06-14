@@ -6,7 +6,6 @@ import streamlit as st
 project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
 
-from src.ingestion.data_loader import DataLoader
 from src.profiling.data_profiler import DataProfiler
 from src.preprocessing.data_cleaner import DataCleaner
 from src.eda.exploratory_analysis import ExploratoryAnalysis
@@ -20,7 +19,7 @@ from app.utils.data_manager import DataManager
 # --------------------------------------------------
 
 st.set_page_config(
-    page_title="AI Business Analyst",
+    page_title="Universal AI Data Analyst",
     page_icon="📊",
     layout="wide"
 )
@@ -29,16 +28,21 @@ st.set_page_config(
 # HEADER
 # --------------------------------------------------
 
-st.title("📊 AI Business Analyst")
+st.title("📊 Universal AI Data Analyst")
 
 st.markdown(
     """
-    Upload a sales dataset and automatically generate:
-    
-    - Data Quality Reports
-    - Exploratory Analysis
-    - Business Insights
-    - Executive Summaries
+    Upload, manage and analyze multiple datasets.
+
+    Features:
+
+    • Dataset Intelligence
+    • Dynamic EDA
+    • AI Insights
+    • Forecasting
+    • Anomaly Detection
+    • AI Chat
+    • Reporting
     """
 )
 
@@ -48,15 +52,19 @@ st.markdown("---")
 # SIDEBAR
 # --------------------------------------------------
 
-st.sidebar.title("Dataset Management")
+st.sidebar.title("📁 Dataset Management")
 
 uploaded_file = st.sidebar.file_uploader(
-    "Upload CSV Dataset",
-    type=["csv"]
+    "Upload Dataset",
+    type=[
+        "csv",
+        "xlsx",
+        "xls"
+    ]
 )
 
 # --------------------------------------------------
-# DATA LOADING
+# DATASET UPLOAD
 # --------------------------------------------------
 
 if uploaded_file:
@@ -66,23 +74,131 @@ if uploaded_file:
     )
 
     st.sidebar.success(
-        "Dataset Uploaded Successfully"
+        f"Uploaded: {uploaded_file.name}"
     )
 
-else:
+# --------------------------------------------------
+# DATASET SELECTOR
+# --------------------------------------------------
 
-    uploaded_df = DataManager.get_data()
+available_datasets = (
+    DataManager.get_available_datasets()
+)
 
-    if uploaded_df is not None:
+dataset_names = [
+    dataset["dataset_name"]
+    for dataset in available_datasets
+]
 
-        df = uploaded_df
+if dataset_names:
 
-    else:
+    current_dataset = (
+        DataManager.get_active_dataset_name()
+    )
 
-        df = DataLoader.load_data()
+    if (
+        current_dataset
+        not in dataset_names
+    ):
 
-        st.sidebar.info(
-            "Using Default Dataset"
+        current_dataset = dataset_names[0]
+
+    selected_dataset = st.sidebar.selectbox(
+        "Select Dataset",
+        options=dataset_names,
+        index=dataset_names.index(
+            current_dataset
+        )
+    )
+
+    if (
+        selected_dataset
+        != current_dataset
+    ):
+
+        DataManager.load_dataset_by_name(
+            selected_dataset
+        )
+
+        st.rerun()
+
+# --------------------------------------------------
+# LOAD ACTIVE DATASET
+# --------------------------------------------------
+
+df = DataManager.get_data()
+
+if df is None:
+
+    st.info(
+        """
+        👋 Welcome to Universal AI Data Analyst
+
+        Upload a dataset to begin analysis.
+
+        Supported:
+
+        • Sales
+        • Finance
+        • Banking
+        • Telecom
+        • HR
+        • Healthcare
+        • Marketing
+        • Generic CSV Files
+        """
+    )
+
+    st.stop()
+
+# --------------------------------------------------
+# LOAD METADATA
+# --------------------------------------------------
+
+schema_metadata = (
+    DataManager.get_schema_metadata()
+)
+
+dataset_summary = (
+    DataManager.get_dataset_summary()
+)
+
+dataset_fingerprint = (
+    DataManager.get_dataset_fingerprint()
+)
+
+# --------------------------------------------------
+# CURRENT DATASET PANEL
+# --------------------------------------------------
+
+active_dataset = (
+    DataManager.get_active_dataset_name()
+)
+
+if active_dataset:
+
+    st.sidebar.markdown("---")
+
+    st.sidebar.subheader(
+        "Active Dataset"
+    )
+
+    st.sidebar.success(
+        active_dataset
+    )
+
+    if dataset_summary:
+
+        st.sidebar.write(
+            f"Type: {dataset_summary.get('dataset_type', 'Generic')}"
+        )
+
+        st.sidebar.write(
+            f"Rows: {dataset_summary.get('row_count', 0):,}"
+        )
+
+        st.sidebar.write(
+            f"Columns: {dataset_summary.get('column_count', 0)}"
         )
 
 # --------------------------------------------------
@@ -91,7 +207,9 @@ else:
 
 profiler = DataProfiler(df)
 
-profile_report = profiler.generate_profile()
+profile_report = (
+    profiler.generate_profile()
+)
 
 cleaner = DataCleaner(df)
 
@@ -101,10 +219,14 @@ cleaning_report = (
 
 eda = ExploratoryAnalysis(df)
 
-eda_report = eda.generate_eda_report()
+eda_report = (
+    eda.generate_eda_report()
+)
 
-insight_generator = InsightGenerator(
-    eda_report
+insight_generator = (
+    InsightGenerator(
+        eda_report
+    )
 )
 
 insights = (
@@ -115,9 +237,9 @@ insights = (
 # DATASET OVERVIEW
 # --------------------------------------------------
 
-st.header("Dataset Overview")
+st.header("📁 Dataset Overview")
 
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 
 with col1:
 
@@ -136,28 +258,168 @@ with col2:
 with col3:
 
     st.metric(
-        "Memory Usage (MB)",
-        profile_report["memory_usage_mb"]
+        "Memory (MB)",
+        profile_report[
+            "memory_usage_mb"
+        ]
     )
 
+with col4:
+
+    st.metric(
+        "Duplicate Rows",
+        cleaning_report[
+            "duplicate_rows"
+        ]
+    )
+
+# --------------------------------------------------
+# DATASET UNDERSTANDING
+# --------------------------------------------------
+
 st.markdown("---")
+
+st.header(
+    "🧠 Dataset Understanding"
+)
+
+if dataset_summary:
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        st.write(
+            f"**Dataset Type:** {dataset_summary.get('dataset_type', 'Unknown')}"
+        )
+
+        st.write(
+            f"**Rows:** {dataset_summary.get('row_count', 0):,}"
+        )
+
+        st.write(
+            f"**Columns:** {dataset_summary.get('column_count', 0)}"
+        )
+
+    with col2:
+
+        st.write(
+            "**Candidate Metrics**"
+        )
+
+        st.write(
+            dataset_summary.get(
+                "candidate_metrics",
+                []
+            )
+        )
+
+        st.write(
+            "**Candidate Dimensions**"
+        )
+
+        st.write(
+            dataset_summary.get(
+                "candidate_dimensions",
+                []
+            )
+        )
+
+# --------------------------------------------------
+# SCHEMA ANALYSIS
+# --------------------------------------------------
+
+st.markdown("---")
+
+st.header("🔍 Schema Analysis")
+
+if schema_metadata:
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        st.write(
+            "**Numeric Columns**"
+        )
+
+        st.write(
+            schema_metadata.get(
+                "numeric_columns",
+                []
+            )
+        )
+
+        st.write(
+            "**Date Columns**"
+        )
+
+        st.write(
+            schema_metadata.get(
+                "date_columns",
+                []
+            )
+        )
+
+    with col2:
+
+        st.write(
+            "**Categorical Columns**"
+        )
+
+        st.write(
+            schema_metadata.get(
+                "categorical_columns",
+                []
+            )
+        )
+
+        st.write(
+            "**Boolean Columns**"
+        )
+
+        st.write(
+            schema_metadata.get(
+                "boolean_columns",
+                []
+            )
+        )
+
+    with col3:
+
+        st.write(
+            "**Text Columns**"
+        )
+
+        st.write(
+            schema_metadata.get(
+                "text_columns",
+                []
+            )
+        )
+
+        st.write(
+            "**ID Columns**"
+        )
+
+        st.write(
+            schema_metadata.get(
+                "id_columns",
+                []
+            )
+        )
 
 # --------------------------------------------------
 # DATA QUALITY
 # --------------------------------------------------
 
-st.header("Data Quality Report")
+st.markdown("---")
+
+st.header("🧹 Data Quality")
 
 col1, col2 = st.columns(2)
 
 with col1:
-
-    st.metric(
-        "Duplicate Rows",
-        cleaning_report["duplicate_rows"]
-    )
-
-with col2:
 
     total_missing = sum(
         cleaning_report[
@@ -170,52 +432,126 @@ with col2:
         total_missing
     )
 
-st.markdown("---")
-
-# --------------------------------------------------
-# EDA SUMMARY
-# --------------------------------------------------
-
-st.header("EDA Summary")
-
-col1, col2 = st.columns(2)
-
-with col1:
-
-    st.subheader("Sales Summary")
-
-    st.json(
-        eda_report[
-            "sales_summary"
-        ]
-    )
-
 with col2:
 
-    st.subheader("Profit Summary")
-
-    st.json(
-        eda_report[
-            "profit_summary"
+    st.metric(
+        "Duplicate Rows",
+        cleaning_report[
+            "duplicate_rows"
         ]
     )
 
+# --------------------------------------------------
+# EDA
+# --------------------------------------------------
+
 st.markdown("---")
 
+st.header(
+    "📈 Exploratory Data Analysis"
+)
+
+st.subheader(
+    "Dataset Summary"
+)
+
+st.json(
+    eda_report[
+        "dataset_summary"
+    ]
+)
+
+st.subheader(
+    "Numeric Summary"
+)
+
+st.json(
+    eda_report[
+        "numeric_summary"
+    ]
+)
+
+st.subheader(
+    "Date Summary"
+)
+
+st.json(
+    eda_report[
+        "date_summary"
+    ]
+)
+
+st.subheader(
+    "Correlation Analysis"
+)
+
+st.json(
+    eda_report[
+        "correlation_analysis"
+    ]
+)
+
+st.subheader(
+    "Outlier Analysis"
+)
+
+st.json(
+    eda_report[
+        "outlier_analysis"
+    ]
+)
+
 # --------------------------------------------------
-# BUSINESS INSIGHTS
+# INSIGHTS
 # --------------------------------------------------
 
-st.header("Business Insights")
+st.markdown("---")
 
-for idx, insight in enumerate(
+st.header(
+    "🤖 AI Insights"
+)
+
+for index, insight in enumerate(
     insights,
     start=1
 ):
 
     st.success(
-        f"Insight {idx}: {insight}"
+        f"Insight {index}: {insight}"
     )
+
+# --------------------------------------------------
+# QUESTIONS
+# --------------------------------------------------
+
+if dataset_summary:
+
+    st.markdown("---")
+
+    st.header(
+        "💡 Suggested Questions"
+    )
+
+    for question in dataset_summary.get(
+        "suggested_questions",
+        []
+    ):
+
+        st.info(question)
+
+# --------------------------------------------------
+# DATASET FINGERPRINT
+# --------------------------------------------------
+
+st.markdown("---")
+
+st.header(
+    "🔐 Dataset Fingerprint"
+)
+
+st.code(
+    dataset_fingerprint
+)
 
 # --------------------------------------------------
 # DATA PREVIEW
@@ -223,11 +559,11 @@ for idx, insight in enumerate(
 
 st.markdown("---")
 
-with st.expander(
-    "View Dataset Preview"
-):
+st.header(
+    "📄 Dataset Preview"
+)
 
-    st.dataframe(
-        df.head(100),
-        use_container_width=True
-    )
+st.dataframe(
+    df.head(100),
+    width="stretch"
+)

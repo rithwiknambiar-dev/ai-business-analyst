@@ -1,22 +1,37 @@
 import faiss
 import pickle
 import numpy as np
+
 from pathlib import Path
 
 
 class VectorStore:
 
-    def __init__(self):
+    def __init__(
+        self,
+        dataset_fingerprint
+    ):
 
         self.index = None
         self.documents = []
 
+        self.dataset_fingerprint = (
+            dataset_fingerprint
+        )
+
+        self.base_path = (
+            Path("data/embeddings")
+            / dataset_fingerprint
+        )
+
         self.index_path = (
-            Path("data/embeddings/faiss.index")
+            self.base_path
+            / "faiss.index"
         )
 
         self.documents_path = (
-            Path("data/embeddings/documents.pkl")
+            self.base_path
+            / "documents.pkl"
         )
 
     def create_index(
@@ -41,7 +56,7 @@ class VectorStore:
 
     def save_index(self):
 
-        self.index_path.parent.mkdir(
+        self.base_path.mkdir(
             parents=True,
             exist_ok=True
         )
@@ -92,6 +107,10 @@ class VectorStore:
         top_k=25
     ):
 
+        if self.index is None:
+
+            return []
+
         distances, indices = (
             self.index.search(
                 query_embedding.astype(
@@ -105,8 +124,12 @@ class VectorStore:
 
         for idx in indices[0]:
 
-            if idx < len(
-                self.documents
+            if (
+                idx >= 0
+                and
+                idx < len(
+                    self.documents
+                )
             ):
 
                 results.append(

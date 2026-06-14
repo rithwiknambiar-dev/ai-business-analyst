@@ -1,206 +1,188 @@
 import pandas as pd
+import numpy as np
+
+from src.schema.schema_analyzer import analyze_schema
 
 
 class ExploratoryAnalysis:
 
     def __init__(self, df):
-        self.df = df
+        self.df = df.copy()
+        self.schema = analyze_schema(self.df)
 
-    def get_sales_summary(self):
-
-        return {
-            "total_sales": round(self.df["Sales"].sum(), 2),
-            "average_sales": round(self.df["Sales"].mean(), 2),
-            "maximum_sale": round(self.df["Sales"].max(), 2),
-            "minimum_sale": round(self.df["Sales"].min(), 2)
-        }
-
-    def get_profit_summary(self):
+    def get_dataset_summary(self):
 
         return {
-            "total_profit": round(self.df["Profit"].sum(), 2),
-            "average_profit": round(self.df["Profit"].mean(), 2),
-            "maximum_profit": round(self.df["Profit"].max(), 2),
-            "minimum_profit": round(self.df["Profit"].min(), 2)
+            "rows": int(len(self.df)),
+            "columns": int(len(self.df.columns)),
+            "missing_values": int(self.df.isnull().sum().sum()),
+            "duplicate_rows": int(self.df.duplicated().sum())
         }
 
-    def get_region_analysis(self):
+    def get_numeric_summary(self):
 
-        region_sales = (
-            self.df.groupby("Region")["Sales"]
-            .sum()
-            .round(2)
-            .to_dict()
+        numeric_cols = self.schema["numeric_columns"]
+
+        summary = {}
+
+        for col in numeric_cols:
+
+            summary[col] = {
+                "sum": round(float(self.df[col].sum()), 2),
+                "mean": round(float(self.df[col].mean()), 2),
+                "median": round(float(self.df[col].median()), 2),
+                "min": round(float(self.df[col].min()), 2),
+                "max": round(float(self.df[col].max()), 2),
+                "std": round(float(self.df[col].std()), 2)
+            }
+
+        return summary
+
+    def get_categorical_summary(self):
+
+        categorical_cols = (
+            self.schema["categorical_columns"]
+            + self.schema["boolean_columns"]
         )
 
-        region_profit = (
-            self.df.groupby("Region")["Profit"]
-            .sum()
-            .round(2)
-            .to_dict()
-        )
+        summary = {}
 
-        best_region = max(region_sales, key=region_sales.get)
-        worst_region = min(region_sales, key=region_sales.get)
+        for col in categorical_cols:
 
-        return {
-            "sales_by_region": region_sales,
-            "profit_by_region": region_profit,
-            "best_region": best_region,
-            "worst_region": worst_region
-        }
+            value_counts = (
+                self.df[col]
+                .astype(str)
+                .value_counts()
+                .head(10)
+                .to_dict()
+            )
 
-    def get_category_analysis(self):
+            summary[col] = value_counts
 
-        category_sales = (
-            self.df.groupby("Category")["Sales"]
-            .sum()
-            .round(2)
-            .to_dict()
-        )
+        return summary
 
-        category_profit = (
-            self.df.groupby("Category")["Profit"]
-            .sum()
-            .round(2)
-            .to_dict()
-        )
+    def get_date_summary(self):
 
-        best_category = max(
-            category_sales,
-            key=category_sales.get
-        )
+        date_cols = self.schema["date_columns"]
 
-        worst_category = min(
-            category_sales,
-            key=category_sales.get
-        )
+        summary = {}
 
-        return {
-            "sales_by_category": category_sales,
-            "profit_by_category": category_profit,
-            "best_category": best_category,
-            "worst_category": worst_category
-        }
+        for col in date_cols:
 
-    def get_segment_analysis(self):
+            valid_dates = self.df[col].dropna()
 
-        segment_sales = (
-            self.df.groupby("Segment")["Sales"]
-            .sum()
-            .round(2)
-            .to_dict()
-        )
+            if len(valid_dates) == 0:
+                continue
 
-        segment_profit = (
-            self.df.groupby("Segment")["Profit"]
-            .sum()
-            .round(2)
-            .to_dict()
-        )
+            summary[col] = {
+                "start_date": str(valid_dates.min()),
+                "end_date": str(valid_dates.max()),
+                "records": int(len(valid_dates))
+            }
 
-        return {
-            "sales_by_segment": segment_sales,
-            "profit_by_segment": segment_profit
-        }
-
-    def get_subcategory_analysis(self):
-
-        subcategory_sales = (
-            self.df.groupby("Sub-Category")["Sales"]
-            .sum()
-            .sort_values(ascending=False)
-            .round(2)
-            .to_dict()
-        )
-
-        return {
-            "sales_by_subcategory": subcategory_sales
-        }
-
-    def get_discount_analysis(self):
-
-        return {
-            "average_discount":
-                round(
-                    self.df["Discount"].mean(),
-                    2
-                ),
-
-            "maximum_discount":
-                round(
-                    self.df["Discount"].max(),
-                    2
-                )
-        }
+        return summary
 
     def get_correlation_analysis(self):
 
-        correlation_matrix = self.df[
-            [
-                "Sales",
-                "Profit",
-                "Quantity",
-                "Discount"
-            ]
-        ].corr()
+        numeric_cols = self.schema["numeric_columns"]
+
+        if len(numeric_cols) < 2:
+            return {}
+
+        corr_matrix = self.df[numeric_cols].corr()
+
+        correlations = {}
+
+        for i in range(len(numeric_cols)):
+            for j in range(i + 1, len(numeric_cols)):
+
+                col1 = numeric_cols[i]
+                col2 = numeric_cols[j]
+
+                correlations[
+                    f"{col1} vs {col2}"
+                ] = round(
+                    float(
+                        corr_matrix.loc[col1, col2]
+                    ),
+                    3
+                )
+
+        return correlations
+
+    def get_missing_value_analysis(self):
+
+        missing = (
+            self.df
+            .isnull()
+            .sum()
+            .sort_values(ascending=False)
+        )
 
         return {
-            "sales_profit":
-                round(
-                    correlation_matrix.loc[
-                        "Sales",
-                        "Profit"
-                    ],
-                    2
-                ),
+            col: int(val)
+            for col, val in missing.items()
+            if val > 0
+        }
 
-            "sales_quantity":
-                round(
-                    correlation_matrix.loc[
-                        "Sales",
-                        "Quantity"
-                    ],
-                    2
-                ),
+    def get_outlier_analysis(self):
 
-            "discount_profit":
-                round(
-                    correlation_matrix.loc[
-                        "Discount",
-                        "Profit"
-                    ],
+        numeric_cols = self.schema["numeric_columns"]
+
+        outlier_report = {}
+
+        for col in numeric_cols:
+
+            series = self.df[col].dropna()
+
+            if len(series) < 5:
+                continue
+
+            q1 = series.quantile(0.25)
+            q3 = series.quantile(0.75)
+
+            iqr = q3 - q1
+
+            lower = q1 - (1.5 * iqr)
+            upper = q3 + (1.5 * iqr)
+
+            outliers = series[
+                (series < lower)
+                | (series > upper)
+            ]
+
+            outlier_report[col] = {
+                "outlier_count": int(len(outliers)),
+                "outlier_percentage": round(
+                    (len(outliers) / len(series)) * 100,
                     2
                 )
-        }
+            }
+
+        return outlier_report
 
     def generate_eda_report(self):
 
-        report = {
+        return {
 
-            "sales_summary":
-                self.get_sales_summary(),
+            "dataset_summary":
+                self.get_dataset_summary(),
 
-            "profit_summary":
-                self.get_profit_summary(),
+            "numeric_summary":
+                self.get_numeric_summary(),
 
-            "region_analysis":
-                self.get_region_analysis(),
+            "categorical_summary":
+                self.get_categorical_summary(),
 
-            "category_analysis":
-                self.get_category_analysis(),
-
-            "segment_analysis":
-                self.get_segment_analysis(),
-
-            "subcategory_analysis":
-                self.get_subcategory_analysis(),
-
-            "discount_analysis":
-                self.get_discount_analysis(),
+            "date_summary":
+                self.get_date_summary(),
 
             "correlation_analysis":
-                self.get_correlation_analysis()
-        }
+                self.get_correlation_analysis(),
 
-        return report
+            "missing_value_analysis":
+                self.get_missing_value_analysis(),
+
+            "outlier_analysis":
+                self.get_outlier_analysis()
+        }

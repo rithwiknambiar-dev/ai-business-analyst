@@ -3,136 +3,250 @@ class InsightGenerator:
     def __init__(self, eda_report):
         self.eda_report = eda_report
 
-    def generate_region_insight(self):
+    def generate_dataset_summary_insight(self):
 
-        region_data = self.eda_report["region_analysis"]
+        summary = self.eda_report.get(
+            "dataset_summary",
+            {}
+        )
 
-        best_region = region_data["best_region"]
-        worst_region = region_data["worst_region"]
+        rows = summary.get(
+            "rows",
+            0
+        )
 
-        best_sales = region_data["sales_by_region"][best_region]
-        worst_sales = region_data["sales_by_region"][worst_region]
+        columns = summary.get(
+            "columns",
+            0
+        )
+
+        duplicates = summary.get(
+            "duplicate_rows",
+            0
+        )
+
+        missing = summary.get(
+            "missing_values",
+            0
+        )
 
         return (
-            f"{best_region} region generated the highest revenue "
-            f"with sales of {best_sales:,.2f}. "
-            f"{worst_region} region generated the lowest revenue "
-            f"with sales of {worst_sales:,.2f}."
+            f"The dataset contains {rows:,} rows and "
+            f"{columns} columns. "
+            f"There are {missing:,} missing values and "
+            f"{duplicates:,} duplicate records."
         )
 
-    def generate_category_insight(self):
+    def generate_numeric_insight(self):
 
-        category_data = self.eda_report["category_analysis"]
-
-        best_category = category_data["best_category"]
-        worst_category = category_data["worst_category"]
-
-        best_sales = category_data["sales_by_category"][best_category]
-        worst_sales = category_data["sales_by_category"][worst_category]
-
-        return (
-            f"{best_category} is the top-performing category "
-            f"with sales of {best_sales:,.2f}. "
-            f"{worst_category} generated the lowest sales "
-            f"with {worst_sales:,.2f}."
+        numeric_summary = self.eda_report.get(
+            "numeric_summary",
+            {}
         )
 
-    def generate_segment_insight(self):
-
-        segment_sales = self.eda_report[
-            "segment_analysis"
-        ]["sales_by_segment"]
-
-        best_segment = max(
-            segment_sales,
-            key=segment_sales.get
-        )
-
-        sales = segment_sales[best_segment]
-
-        return (
-            f"{best_segment} customers contribute the "
-            f"largest share of revenue with sales "
-            f"of {sales:,.2f}."
-        )
-
-    def generate_subcategory_insight(self):
-
-        subcategories = self.eda_report[
-            "subcategory_analysis"
-        ]["sales_by_subcategory"]
-
-        top_subcategory = next(
-            iter(subcategories)
-        )
-
-        sales = subcategories[top_subcategory]
-
-        return (
-            f"{top_subcategory} is the best-selling "
-            f"sub-category with sales of "
-            f"{sales:,.2f}."
-        )
-
-    def generate_discount_insight(self):
-
-        correlation = self.eda_report[
-            "correlation_analysis"
-        ]["discount_profit"]
-
-        if correlation < 0:
+        if not numeric_summary:
 
             return (
-                f"Discounts show a negative correlation "
-                f"with profit ({correlation}). "
-                f"Higher discounts tend to reduce "
-                f"profitability."
+                "No numeric columns were detected "
+                "for statistical analysis."
             )
 
-        return (
-            f"Discounts show a positive correlation "
-            f"with profit ({correlation})."
+        insights = []
+
+        for column, stats in list(
+            numeric_summary.items()
+        )[:3]:
+
+            insights.append(
+                f"{column} has an average value of "
+                f"{stats['mean']:,.2f} "
+                f"with values ranging from "
+                f"{stats['min']:,.2f} to "
+                f"{stats['max']:,.2f}."
+            )
+
+        return " ".join(insights)
+
+    def generate_categorical_insight(self):
+
+        categorical_summary = self.eda_report.get(
+            "categorical_summary",
+            {}
         )
 
-    def generate_sales_profit_insight(self):
+        if not categorical_summary:
 
-        total_sales = self.eda_report[
-            "sales_summary"
-        ]["total_sales"]
+            return (
+                "No categorical columns were detected."
+            )
 
-        total_profit = self.eda_report[
-            "profit_summary"
-        ]["total_profit"]
+        column = next(
+            iter(categorical_summary)
+        )
 
-        profit_margin = (
-            total_profit / total_sales
-        ) * 100
+        values = categorical_summary[column]
+
+        if not values:
+
+            return (
+                f"No category distribution "
+                f"available for {column}."
+            )
+
+        top_value = max(
+            values,
+            key=values.get
+        )
+
+        count = values[top_value]
 
         return (
-            f"Total sales amount to "
-            f"{total_sales:,.2f} with "
-            f"overall profit of "
-            f"{total_profit:,.2f}. "
-            f"The overall profit margin "
-            f"is {profit_margin:.2f}%."
+            f"The most common value in "
+            f"{column} is '{top_value}' "
+            f"with {count:,} occurrences."
+        )
+
+    def generate_date_insight(self):
+
+        date_summary = self.eda_report.get(
+            "date_summary",
+            {}
+        )
+
+        if not date_summary:
+
+            return (
+                "No date columns were detected."
+            )
+
+        column = next(
+            iter(date_summary)
+        )
+
+        details = date_summary[column]
+
+        return (
+            f"The dataset spans from "
+            f"{details['start_date']} "
+            f"to {details['end_date']} "
+            f"based on {column}."
+        )
+
+    def generate_correlation_insight(self):
+
+        correlations = self.eda_report.get(
+            "correlation_analysis",
+            {}
+        )
+
+        if not correlations:
+
+            return (
+                "Insufficient numeric columns "
+                "for correlation analysis."
+            )
+
+        strongest_pair = max(
+            correlations,
+            key=lambda x: abs(
+                correlations[x]
+            )
+        )
+
+        value = correlations[
+            strongest_pair
+        ]
+
+        return (
+            f"The strongest detected "
+            f"relationship is between "
+            f"{strongest_pair} "
+            f"with a correlation of "
+            f"{value:.3f}."
+        )
+
+    def generate_outlier_insight(self):
+
+        outlier_report = self.eda_report.get(
+            "outlier_analysis",
+            {}
+        )
+
+        if not outlier_report:
+
+            return (
+                "No outlier analysis was available."
+            )
+
+        highest_column = max(
+            outlier_report,
+            key=lambda x:
+            outlier_report[x][
+                "outlier_count"
+            ]
+        )
+
+        count = outlier_report[
+            highest_column
+        ][
+            "outlier_count"
+        ]
+
+        percentage = outlier_report[
+            highest_column
+        ][
+            "outlier_percentage"
+        ]
+
+        return (
+            f"{highest_column} contains "
+            f"{count:,} potential outliers "
+            f"representing {percentage}% "
+            f"of the records."
+        )
+
+    def generate_data_quality_insight(self):
+
+        missing_values = self.eda_report.get(
+            "missing_value_analysis",
+            {}
+        )
+
+        if not missing_values:
+
+            return (
+                "No missing values were detected."
+            )
+
+        column = max(
+            missing_values,
+            key=missing_values.get
+        )
+
+        count = missing_values[column]
+
+        return (
+            f"The column '{column}' contains "
+            f"the highest number of missing "
+            f"values ({count:,})."
         )
 
     def generate_all_insights(self):
 
-        insights = [
+        return [
 
-            self.generate_sales_profit_insight(),
+            self.generate_dataset_summary_insight(),
 
-            self.generate_region_insight(),
+            self.generate_numeric_insight(),
 
-            self.generate_category_insight(),
+            self.generate_categorical_insight(),
 
-            self.generate_segment_insight(),
+            self.generate_date_insight(),
 
-            self.generate_subcategory_insight(),
+            self.generate_correlation_insight(),
 
-            self.generate_discount_insight()
+            self.generate_outlier_insight(),
+
+            self.generate_data_quality_insight()
 
         ]
-
-        return insights

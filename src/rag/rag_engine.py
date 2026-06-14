@@ -1,3 +1,5 @@
+from app.utils.data_manager import DataManager
+
 from src.rag.embedding_generator import (
     EmbeddingGenerator
 )
@@ -21,8 +23,22 @@ class RAGEngine:
             EmbeddingGenerator()
         )
 
+        dataset_fingerprint = (
+            DataManager.get_dataset_fingerprint()
+        )
+
+        if not dataset_fingerprint:
+
+            dataset_fingerprint = (
+                DataManager.generate_dataset_fingerprint(
+                    df
+                )
+            )
+
         self.vector_store = (
-            VectorStore()
+            VectorStore(
+                dataset_fingerprint
+            )
         )
 
         self.retriever = None
@@ -34,7 +50,8 @@ class RAGEngine:
         if loaded:
 
             print(
-                "Existing FAISS Index Loaded"
+                f"Loaded FAISS index for dataset: "
+                f"{dataset_fingerprint[:12]}"
             )
 
             self.retriever = Retriever(
@@ -45,46 +62,58 @@ class RAGEngine:
         else:
 
             print(
-                "No Saved Index Found"
+                "No existing FAISS index found."
             )
 
             self.build_index()
 
     def build_index(self):
 
+        print(
+            "Building universal dataset documents..."
+        )
+
         documents = []
 
-        print(
-            "Building Documents..."
+        max_rows = min(
+            len(self.df),
+            5000
         )
 
         for _, row in (
-            self.df.head(2000)
+            self.df.head(max_rows)
             .iterrows()
         ):
 
-            document = f"""
-Region: {row.get('Region', '')}
-Category: {row.get('Category', '')}
-Sub-Category: {row.get('Sub-Category', '')}
-Product Name: {row.get('Product Name', '')}
-Segment: {row.get('Segment', '')}
-Sales: {row.get('Sales', '')}
-Profit: {row.get('Profit', '')}
-Quantity: {row.get('Quantity', '')}
-Discount: {row.get('Discount', '')}
-"""
+            row_document = []
+
+            for column in self.df.columns:
+
+                value = row.get(
+                    column,
+                    ""
+                )
+
+                if str(value) == "nan":
+
+                    value = ""
+
+                row_document.append(
+                    f"{column}: {value}"
+                )
 
             documents.append(
-                document
+                "\n".join(
+                    row_document
+                )
             )
 
         print(
-            f"Documents: {len(documents)}"
+            f"Generated {len(documents)} documents"
         )
 
         print(
-            "Generating Embeddings..."
+            "Generating embeddings..."
         )
 
         embeddings = (
@@ -95,7 +124,7 @@ Discount: {row.get('Discount', '')}
         )
 
         print(
-            "Embeddings Generated"
+            "Embeddings generated"
         )
 
         self.vector_store.create_index(
@@ -104,24 +133,28 @@ Discount: {row.get('Discount', '')}
         )
 
         print(
-            "Saving FAISS Index..."
+            "Saving dataset-specific FAISS index..."
         )
 
         self.vector_store.save_index()
-
-        print(
-            "FAISS Saved"
-        )
 
         self.retriever = Retriever(
             self.embedding_generator,
             self.vector_store
         )
 
+        print(
+            "Dataset index ready"
+        )
+
     def retrieve(
         self,
         question
     ):
+
+        if self.retriever is None:
+
+            return []
 
         return self.retriever.retrieve(
             question,
