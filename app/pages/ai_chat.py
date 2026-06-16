@@ -14,9 +14,18 @@ project_root = (
 sys.path.append(str(project_root))
 
 from app.utils.data_manager import DataManager
-from src.rag.llm_handler import LLMHandler
-from src.rag.rag_engine import RAGEngine
 
+from src.analytics.analytics_handler import (
+    AnalyticsHandler
+)
+
+from src.rag.llm_handler import (
+    LLMHandler
+)
+
+from src.rag.rag_engine import (
+    RAGEngine
+)
 
 # =====================================
 # PAGE CONFIG
@@ -128,7 +137,7 @@ if dataset_summary:
         )
 
 # =====================================
-# DYNAMIC QUESTIONS
+# SUGGESTED QUESTIONS
 # =====================================
 
 if dataset_summary:
@@ -145,7 +154,15 @@ if dataset_summary:
         st.info(question)
 
 # =====================================
-# RAG LOADER
+# ANALYTICS ENGINE
+# =====================================
+
+analytics_handler = (
+    AnalyticsHandler(df)
+)
+
+# =====================================
+# RAG ENGINE
 # =====================================
 
 @st.cache_resource
@@ -159,8 +176,7 @@ def load_rag_engine(
     )
 
 with st.spinner(
-
-    "Preparing your dataset for AI search..."
+    "Preparing your dataset..."
 ):
 
     rag_engine = load_rag_engine(
@@ -226,40 +242,65 @@ if question:
     ):
 
         with st.spinner(
-            "Analyzing dataset..."
+            "Analyzing..."
         ):
 
-            retrieved_docs = (
-                rag_engine.retrieve(
+            analytics_response = (
+                analytics_handler
+                .answer_question(
                     question
                 )
             )
 
-            response = (
-                llm.ask_rag_question(
-                    retrieved_docs,
-                    question
+            if analytics_response:
+
+                response = (
+                    analytics_response
                 )
-            )
 
-            st.markdown(
-                response
-            )
+                st.success(
+                    "Answered using Analytics Engine"
+                )
 
-            with st.expander(
-                "Retrieved Context"
-            ):
+                st.markdown(
+                    response
+                )
 
-                for i, doc in enumerate(
-                    retrieved_docs,
-                    start=1
+            else:
+
+                retrieved_docs = (
+                    rag_engine.retrieve(
+                        question
+                    )
+                )
+
+                response = (
+                    llm.ask_rag_question(
+                        retrieved_docs,
+                        question
+                    )
+                )
+
+                st.markdown(
+                    response
+                )
+
+                with st.expander(
+                    "Retrieved Context"
                 ):
 
-                    st.markdown(
-                        f"### Document {i}"
-                    )
+                    for i, doc in enumerate(
+                        retrieved_docs,
+                        start=1
+                    ):
 
-                    st.text(doc)
+                        st.markdown(
+                            f"### Document {i}"
+                        )
+
+                        st.text(
+                            doc
+                        )
 
     st.session_state.messages.append(
         {
