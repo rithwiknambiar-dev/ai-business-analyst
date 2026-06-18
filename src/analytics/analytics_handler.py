@@ -2,22 +2,22 @@ from src.analytics.analytics_engine import (
     AnalyticsEngine
 )
 
-from src.analytics.query_patterns import (
-    QueryPatterns
+from src.analytics.query_intent import (
+    QueryIntentParser
 )
 
-from src.analytics.question_analyzer import (
-    QuestionAnalyzer
-)
-
-from src.analytics.semantic_mapper import (
-    SemanticMapper
+from src.analytics.column_resolver import (
+    ColumnResolver
 )
 
 
 class AnalyticsHandler:
 
-    def __init__(self, df):
+    def __init__(
+        self,
+        df,
+        dataset_summary
+    ):
 
         self.df = df
 
@@ -25,268 +25,202 @@ class AnalyticsHandler:
             df
         )
 
+        self.resolver = ColumnResolver(
+            df.columns.tolist(),
+            dataset_summary
+        )
+
     def answer_question(
         self,
         question
     ):
 
-        question_type = (
-            QueryPatterns
-            .detect_question_type(
-                question
-            )
-        )
-
-        if question_type is None:
-
-            return None
-
         try:
 
+            intent = (
+                QueryIntentParser.parse(
+                    question
+                )
+            )
+
+            if (
+                intent.operation
+                is None
+            ):
+
+                return None
+
+            metric_column = (
+                self.resolver
+                .resolve_metric(
+                    intent.metric_text
+                )
+            )
+
+            dimension_column = (
+                self.resolver
+                .resolve_dimension(
+                    intent.dimension_text
+                )
+            )
+
             # =====================================
-            # GROUP BY QUESTIONS
+            # GROUP BY ANALYTICS
             # =====================================
 
-            if question_type == "groupby":
+            if dimension_column:
 
-                measure_column, group_column = (
-                    QuestionAnalyzer
-                    .find_groupby_columns(
-                        question,
-                        self.engine.get_columns()
+                if (
+                    intent.operation
+                    ==
+                    "average"
+                ):
+
+                    result = (
+                        self.engine
+                        .groupby_average(
+                            metric_column,
+                            dimension_column
+                        )
                     )
-                )
 
-                print(
-                    "\n========== GROUPBY DEBUG =========="
-                )
-
-                print(
-                    f"Question: {question}"
-                )
-
-                print(
-                    f"Measure Column: {measure_column}"
-                )
-
-                print(
-                    f"Group Column: {group_column}"
-                )
-
-                print(
-                    "===================================\n"
-                )
-
-                # ---------------------------------
+                    return (
+                        f"Average "
+                        f"{metric_column} "
+                        f"by "
+                        f"{dimension_column}:\n\n"
+                        f"{result}"
+                    )
 
                 if (
-                    "average" in question.lower()
-                    or
-                    "avg" in question.lower()
-                    or
-                    "mean" in question.lower()
+                    intent.operation
+                    ==
+                    "sum"
                 ):
 
-                    if (
-                        measure_column
-                        and
-                        group_column
-                    ):
-
-                        result = (
-                            self.engine
-                            .groupby_average(
-                                measure_column,
-                                group_column
-                            )
+                    result = (
+                        self.engine
+                        .groupby_total(
+                            metric_column,
+                            dimension_column
                         )
+                    )
 
-                        return (
-                            f"Average "
-                            f"{measure_column} "
-                            f"by "
-                            f"{group_column}:\n\n"
-                            f"{result}"
-                        )
-
-                # ---------------------------------
+                    return (
+                        f"Total "
+                        f"{metric_column} "
+                        f"by "
+                        f"{dimension_column}:\n\n"
+                        f"{result}"
+                    )
 
                 if (
-                    "total" in question.lower()
-                    or
-                    "sum" in question.lower()
+                    intent.operation
+                    ==
+                    "count"
                 ):
 
-                    if (
-                        measure_column
-                        and
-                        group_column
-                    ):
-
-                        result = (
-                            self.engine
-                            .groupby_total(
-                                measure_column,
-                                group_column
-                            )
+                    result = (
+                        self.engine
+                        .groupby_count(
+                            dimension_column
                         )
+                    )
 
-                        return (
-                            f"Total "
-                            f"{measure_column} "
-                            f"by "
-                            f"{group_column}:\n\n"
-                            f"{result}"
-                        )
-
-                # ---------------------------------
-
-                if (
-                    "count" in question.lower()
-                    or
-                    "how many" in question.lower()
-                    or
-                    "number of" in question.lower()
-                ):
-
-                    if group_column:
-
-                        result = (
-                            self.engine
-                            .groupby_count(
-                                group_column
-                            )
-                        )
-
-                        return (
-                            f"Count by "
-                            f"{group_column}:\n\n"
-                            f"{result}"
-                        )
+                    return (
+                        f"Count by "
+                        f"{dimension_column}:\n\n"
+                        f"{result}"
+                    )
 
             # =====================================
             # STANDARD ANALYTICS
             # =====================================
 
-            column = (
-                SemanticMapper.find_column(
-                    question,
-                    self.engine.get_columns()
-                )
-            )
-
-            value_column, value = (
-                QuestionAnalyzer
-                .find_matching_value(
-                    question,
-                    self.df
-                )
-            )
-
-            # =====================================
-            # COUNT
-            # =====================================
-
             if (
-                question_type == "count"
-                and value_column
-                and value
+                metric_column
+                is None
             ):
 
-                count = (
-                    self.engine
-                    .count_records(
-                        value_column,
-                        value
-                    )
-                )
-
-                return (
-                    f"{count} records match "
-                    f"{value_column} = {value}."
-                )
-
-            # =====================================
-            # AVERAGE
-            # =====================================
+                return None
 
             if (
-                question_type == "average"
-                and column
+                intent.operation
+                ==
+                "average"
             ):
 
                 result = (
-                    self.engine.average(
-                        column
+                    self.engine
+                    .average(
+                        metric_column
                     )
                 )
 
                 return (
                     f"The average "
-                    f"{column} is "
+                    f"{metric_column} "
+                    f"is "
                     f"{result}."
                 )
 
-            # =====================================
-            # MAXIMUM
-            # =====================================
-
             if (
-                question_type == "maximum"
-                and column
+                intent.operation
+                ==
+                "sum"
             ):
 
                 result = (
-                    self.engine.maximum(
-                        column
-                    )
-                )
-
-                return (
-                    f"The maximum "
-                    f"{column} is "
-                    f"{result}."
-                )
-
-            # =====================================
-            # MINIMUM
-            # =====================================
-
-            if (
-                question_type == "minimum"
-                and column
-            ):
-
-                result = (
-                    self.engine.minimum(
-                        column
-                    )
-                )
-
-                return (
-                    f"The minimum "
-                    f"{column} is "
-                    f"{result}."
-                )
-
-            # =====================================
-            # TOTAL
-            # =====================================
-
-            if (
-                question_type == "total"
-                and column
-            ):
-
-                result = (
-                    self.engine.total(
-                        column
+                    self.engine
+                    .total(
+                        metric_column
                     )
                 )
 
                 return (
                     f"The total "
-                    f"{column} is "
+                    f"{metric_column} "
+                    f"is "
+                    f"{result}."
+                )
+
+            if (
+                intent.operation
+                ==
+                "maximum"
+            ):
+
+                result = (
+                    self.engine
+                    .maximum(
+                        metric_column
+                    )
+                )
+
+                return (
+                    f"The maximum "
+                    f"{metric_column} "
+                    f"is "
+                    f"{result}."
+                )
+
+            if (
+                intent.operation
+                ==
+                "minimum"
+            ):
+
+                result = (
+                    self.engine
+                    .minimum(
+                        metric_column
+                    )
+                )
+
+                return (
+                    f"The minimum "
+                    f"{metric_column} "
+                    f"is "
                     f"{result}."
                 )
 

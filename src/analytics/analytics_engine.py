@@ -41,10 +41,12 @@ class AnalyticsEngine:
             return None
 
         return round(
+
             pd.to_numeric(
                 self.df[column],
                 errors="coerce"
             ).mean(),
+
             2
         )
 
@@ -58,11 +60,13 @@ class AnalyticsEngine:
             return None
 
         return (
+
             pd.to_numeric(
                 self.df[column],
                 errors="coerce"
             )
             .max()
+
         )
 
     def minimum(
@@ -75,11 +79,13 @@ class AnalyticsEngine:
             return None
 
         return (
+
             pd.to_numeric(
                 self.df[column],
                 errors="coerce"
             )
             .min()
+
         )
 
     def total(
@@ -92,10 +98,12 @@ class AnalyticsEngine:
             return None
 
         return round(
+
             pd.to_numeric(
                 self.df[column],
                 errors="coerce"
             ).sum(),
+
             2
         )
 
@@ -110,22 +118,46 @@ class AnalyticsEngine:
     ):
 
         if (
-            measure_column not in self.df.columns
+
+            measure_column
+            not in self.df.columns
+
             or
-            group_column not in self.df.columns
+
+            group_column
+            not in self.df.columns
+
         ):
 
             return None
 
+        temp_df = self.df.copy()
+
+        temp_df[
+            measure_column
+        ] = pd.to_numeric(
+
+            temp_df[
+                measure_column
+            ],
+
+            errors="coerce"
+        )
+
         result = (
-            self.df.groupby(
+
+            temp_df.groupby(
                 group_column
             )[measure_column]
+
             .mean()
+
             .round(2)
+
             .sort_values(
                 ascending=False
             )
+
         )
 
         return result.to_dict()
@@ -137,22 +169,46 @@ class AnalyticsEngine:
     ):
 
         if (
-            measure_column not in self.df.columns
+
+            measure_column
+            not in self.df.columns
+
             or
-            group_column not in self.df.columns
+
+            group_column
+            not in self.df.columns
+
         ):
 
             return None
 
+        temp_df = self.df.copy()
+
+        temp_df[
+            measure_column
+        ] = pd.to_numeric(
+
+            temp_df[
+                measure_column
+            ],
+
+            errors="coerce"
+        )
+
         result = (
-            self.df.groupby(
+
+            temp_df.groupby(
                 group_column
             )[measure_column]
+
             .sum()
+
             .round(2)
+
             .sort_values(
                 ascending=False
             )
+
         )
 
         return result.to_dict()
@@ -170,13 +226,84 @@ class AnalyticsEngine:
             return None
 
         result = (
+
             self.df[
                 group_column
             ]
+
             .value_counts()
+
         )
 
         return result.to_dict()
+
+    # =====================================
+    # ADVANCED ANALYTICS
+    # =====================================
+
+    def correlation_matrix(self):
+
+        numeric_df = (
+
+            self.df.select_dtypes(
+                include=["number"]
+            )
+
+        )
+
+        if numeric_df.empty:
+
+            return None
+
+        return numeric_df.corr()
+
+    def top_correlations(
+        self,
+        limit=10
+    ):
+
+        corr = self.correlation_matrix()
+
+        if corr is None:
+
+            return None
+
+        correlations = []
+
+        columns = corr.columns
+
+        for i in range(
+            len(columns)
+        ):
+
+            for j in range(
+                i + 1,
+                len(columns)
+            ):
+
+                correlations.append(
+
+                    (
+                        columns[i],
+                        columns[j],
+                        round(
+                            corr.iloc[i, j],
+                            3
+                        )
+                    )
+
+                )
+
+        correlations.sort(
+
+            key=lambda x: abs(
+                x[2]
+            ),
+
+            reverse=True
+        )
+
+        return correlations[:limit]
 
     # =====================================
     # UTILITIES
@@ -192,10 +319,15 @@ class AnalyticsEngine:
             return []
 
         return (
+
             self.df[column]
+
             .dropna()
+
             .unique()
+
             .tolist()
+
         )
 
     def column_exists(

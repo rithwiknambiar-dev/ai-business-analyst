@@ -36,7 +36,9 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("🤖 AI Data Analyst Chat")
+st.title(
+    "🤖 AI Data Analyst Chat"
+)
 
 # =====================================
 # LOAD DATA
@@ -146,19 +148,28 @@ if dataset_summary:
         "### Suggested Questions"
     )
 
-    for question in dataset_summary.get(
-        "suggested_questions",
-        []
+    for suggested_question in (
+
+        dataset_summary.get(
+            "suggested_questions",
+            []
+        )
+
     ):
 
-        st.info(question)
+        st.info(
+            suggested_question
+        )
 
 # =====================================
 # ANALYTICS ENGINE
 # =====================================
 
 analytics_handler = (
-    AnalyticsHandler(df)
+    AnalyticsHandler(
+        df,
+        dataset_summary
+    )
 )
 
 # =====================================
@@ -176,12 +187,17 @@ def load_rag_engine(
     )
 
 with st.spinner(
+
     "Preparing your dataset..."
+
 ):
 
     rag_engine = load_rag_engine(
+
         dataset_fingerprint,
+
         df
+
     )
 
 # =====================================
@@ -223,10 +239,12 @@ question = st.chat_input(
 if question:
 
     st.session_state.messages.append(
+
         {
             "role": "user",
             "content": question
         }
+
     )
 
     with st.chat_message(
@@ -245,11 +263,17 @@ if question:
             "Analyzing..."
         ):
 
+            # ==========================
+            # ANALYTICS FIRST
+            # ==========================
+
             analytics_response = (
+
                 analytics_handler
                 .answer_question(
                     question
                 )
+
             )
 
             if analytics_response:
@@ -268,17 +292,25 @@ if question:
 
             else:
 
+                # ==========================
+                # RAG FALLBACK
+                # ==========================
+
                 retrieved_docs = (
+
                     rag_engine.retrieve(
                         question
                     )
+
                 )
 
                 response = (
+
                     llm.ask_rag_question(
                         retrieved_docs,
                         question
                     )
+
                 )
 
                 st.markdown(
@@ -290,8 +322,11 @@ if question:
                 ):
 
                     for i, doc in enumerate(
+
                         retrieved_docs,
+
                         start=1
+
                     ):
 
                         st.markdown(
@@ -303,8 +338,10 @@ if question:
                         )
 
     st.session_state.messages.append(
+
         {
             "role": "assistant",
             "content": response
         }
+
     )
